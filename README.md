@@ -7,5 +7,5 @@ Set the data in the directory and set it accordingly when using the code here
     testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2) 
 ```
 
-To get CLIP evaluation on CIFAR10 and CIFAR100 run ```eval.py```
-To get evaluation with text corruption set *TEXT_CORRUPT=True* in file. For Zero shot set it to *False*. 
+To get CLIP evaluation on CIFAR10 and CIFAR100 run ```eval.py``` \
+To get evaluation with text corruption set ```TEXT_CORRUPT=True``` in file. For Zero shot set it to **False**. 
