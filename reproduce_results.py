@@ -94,9 +94,9 @@ class AddText(object):
 
 
 
-TEXT_CORRUPT = True
+TEXT_CORRUPT = False
 fontsize = 5
-clip_models = clip.available_models()[5:-2]
+clip_models = clip.available_models()[0:4] + clip.available_models()[5:-2]
 print(clip_models)
 datasets = ['cifar10', 'cifar100']
 
@@ -143,7 +143,8 @@ for clipx in clip_models:
         print(f"Evaluating {dataset}")
         classes = testset.classes
 
-        text_descriptions = [f"a photo of a {label}" for label in classes]
+        # Text label caption
+        text_descriptions = [f"This is a photo of a {label}" for label in classes]
         text_tokens = clip.tokenize(text_descriptions).cuda()
         with torch.no_grad():
             text_features = model.encode_text(text_tokens).float()
@@ -153,7 +154,7 @@ for clipx in clip_models:
         print(f"Top1 Accuracy: {top1:.2f}\nTop5 Accuracy: {top5:.2f}")
         accuracies[dataset] = {'Top1': top1, 'Top5': top5}
 
-    savepath = f"./results/experiment_t{fontsize}/" if TEXT_CORRUPT else "./results/"
+    savepath = f"./results/experiment_t{fontsize}/" if TEXT_CORRUPT else "./results/zeroshot/"
     if not os.path.exists(savepath):
         os.mkdir(savepath)
     savepath = savepath + "accuracies_" + clipx.replace('/' , '-') + ".json"
