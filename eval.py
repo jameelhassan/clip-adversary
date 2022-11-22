@@ -127,7 +127,7 @@ for clipx in clip_models:
         for idx in range(10):
             batch_size = 5
             if dataset == 'cifar10':
-                cifar_classes = get_cifar10_classes('/home/jameel.hassan/Documents/AI701/data/cifar10/cifar-10-batches-py/batches.meta')
+                cifar_classes = get_cifar10_classes('./data/cifar10/batches.meta')
                 print(cifar_classes)
                 if TEXT_CORRUPT:
                     preprocess = transforms.Compose([AddText(cifar_classes, fontsize=fontsize, index=idx), preprocess])
@@ -135,17 +135,17 @@ for clipx in clip_models:
                 # trainset = torchvision.datasets.CIFAR10(root='/home/jameel.hassan/Documents/AI701/data/cifar10', train=True, download=False, transform=preprocess)
                 # trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
 
-                testset = torchvision.datasets.CIFAR10(root='/home/jameel.hassan/Documents/AI701/data/cifar10', train=False, download=False, transform=preprocess)
+                testset = torchvision.datasets.CIFAR10(root='./data/cifar10', train=False, download=False, transform=preprocess)
                 testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
             elif dataset == 'cifar100':
-                cifar_classes = get_cifar100_classes('/home/jameel.hassan/Documents/AI701/data/cifar100/cifar-100-python/meta')
+                cifar_classes = get_cifar100_classes('./data/cifar100/meta')
                 print(len(cifar_classes))
                 if TEXT_CORRUPT:
                     preprocess = transforms.Compose([AddText(cifar_classes, fontsize=fontsize), preprocess])
                 # trainset = torchvision.datasets.CIFAR100(root='/home/jameel.hassan/Documents/AI701/data/cifar100', train=True, download=False, transform=preprocess)
                 # trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
 
-                testset = torchvision.datasets.CIFAR100(root='/home/jameel.hassan/Documents/AI701/data/cifar100', train=False, download=False, transform=preprocess)
+                testset = torchvision.datasets.CIFAR100(root='./data/cifar100', train=False, download=False, transform=preprocess)
                 testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
             else:
                 print("Dataset other than CIFAR requested.")
