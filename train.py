@@ -219,8 +219,10 @@ if __name__ == '__main__':
     for ep in range(epochs):
         if ep == 0:
             top1, top5, predictions = zeroshot(model)
-            print(f"####### Zero Shot CLIP performance #######")
+            print(f"####### Zero Shot CLIP performance #########")
             print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
+            print(f"Predictions: {predictions}")
+
         if ep % 5 == 0:
             top1, top5, predictions = validate(model)
             print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
