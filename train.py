@@ -52,7 +52,7 @@ def train(model):
         for batch_idx, (img_corr, data, target) in enumerate(tepoch):
             img_corr, data, target = img_corr.to(device), data.to(device), target.to(device)
             optimizer.zero_grad()
-            corrupt_text = cifar_classes[0] # EDIT THIS!!!   
+            corrupt_text = cifar_classes[idx] # EDIT THIS!!!   
 
             text_corrupt = clip.tokenize([f"This is a photo of a {corrupt_text}"]).to(device)
             structured_noise = model(img_corr)      # Structured noise from generator with input as corrupted image
@@ -182,17 +182,12 @@ if __name__ == '__main__':
     criterion = ContrastiveLoss()
     optimizer = torch.optim.AdamW(list(model.parameters()), lr=5e-6)
     batch_size = 24
-    epochs = 10
+    epochs = 50
     print("Loaded generator model")
 
     cifar_classes = get_cifar10_classes('./data/cifar10/batches.meta')
     print(cifar_classes)
     preprocess_corrupt = transforms.Compose([AddText(cifar_classes, fontsize=fontsize, index=idx), preprocess])
-    # trainset = torchvision.datasets.CIFAR10(root='./data/cifar10', train=True, download=False, transform=torch.tensor)
-    # train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-
-    # testset = torchvision.datasets.CIFAR10(root='./data/cifar10', train=False, download=False, transform=preprocess)
-    # test_loader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
     trainset = Cifar10_preprocess2(root='./data/cifar10', train=True, download=False, transform_corr=preprocess_corrupt, transform=preprocess)
     train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
@@ -203,6 +198,11 @@ if __name__ == '__main__':
     zeroshot_set = torchvision.datasets.CIFAR10(root='./data/cifar10', train=False, download=False, transform=preprocess)
     zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_set, batch_size=batch_size, shuffle=False, num_workers=2)
 
+
+    if not os.path.exists('./checkpoints'):
+        os.makedirs('./checkpoints')
+
+    
     for ep in range(epochs):
         # if ep == 0:
         #     top1, top5, predictions = zeroshot(model)
@@ -212,8 +212,18 @@ if __name__ == '__main__':
 
         if ep % 5 == 0:
             top1, top5, predictions = validate(model)
-            print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
-            print(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}")
+            print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+            print(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n")
 
-        top1, top5, predictions = train(model)
+            with open(f'checkpoints/chk_ep{ep}_fs{fontsize}.txt', 'a') as f:
+                f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+                f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n")
+
+            model_weights = model.state_dict()
+            torch.save(model_weights, f'checkpoints/chk_ep{ep}.pth')
+
+        train_loss = train(model)
+        print(f"Epoch {ep} - Train loss: {train_loss:.2f}")
+        with open(f'checkpoints/chk_ep{ep}_fs{fontsize}.txt', 'a') as f:
+            f.write(f"Epoch {ep} - Train loss: {train_loss:.2f}\n")
         
