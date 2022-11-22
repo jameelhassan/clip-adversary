@@ -200,7 +200,7 @@ if __name__ == '__main__':
     model.to(device)
     criterion = ContrastiveLoss()
     optimizer = torch.optim.AdamW(list(model.parameters()), lr=5e-6)
-    batch_size = 24
+    batch_size = 32
     epochs = 10
     print("Loaded generator model")
 
@@ -228,5 +228,5 @@ if __name__ == '__main__':
             print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
             print(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}")
 
-        loss, acc = train(model)
+        top1, top5, predictions = train(model)
         
