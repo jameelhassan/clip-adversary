@@ -14,7 +14,8 @@ import random
 from our_models import *
 from losses import ContrastiveLoss
 from utils import *
-
+from torchvision.utils import save_image
+from torchvision.utils import make_grid
 
 class AddText(object):
     """
@@ -82,6 +83,7 @@ def validate(model):
     top1 = 0.
     top5 = 0.
     n = 0.
+    cnt=0
 
     with tqdm(test_loader, unit="batch") as tepoch:
         for batch_idx, (data, target) in enumerate(tepoch):
@@ -92,6 +94,9 @@ def validate(model):
                 adversary = structured_noise + data
                 adversary = torch.min(torch.max(adversary, data - eps), data + eps)
                 adversary = torch.clamp(adversary, 0.0, 1.0)
+                batch_images = make_grid(adversary, nrow=10, normalize=True)
+                if(cnt==0):
+                    save_image(batch_images, "./Adversary_images/batchimg"+str(cnt)+".png",normalize=False)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in cifar_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -111,6 +116,7 @@ def validate(model):
             top1 += acc1
             top5 += acc5
             n += data.size(0)
+            cnt+=1
     
     top1 = (top1 / n) * 100
     top5 = (top5 / n) * 100
@@ -126,10 +132,14 @@ def zeroshot(model):
     top1 = 0.
     top5 = 0.
     n = 0.
+    cnt=0
 
-    with tqdm(test_loader, unit="batch") as tepoch:
+    with tqdm(zeroshot_loader, unit="batch") as tepoch:
         for batch_idx, (data, target) in enumerate(tepoch):
             data, target = data.to(device), target.to(device)
+            batch_images = make_grid(data, nrow=10, normalize=True)
+            if(cnt==0):
+                save_image(batch_images, "./original_img/batchimg"+str(cnt)+".png",normalize=False)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in cifar_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -149,6 +159,7 @@ def zeroshot(model):
             top1 += acc1
             top5 += acc5
             n += data.size(0)
+            cnt+=1
     
     top1 = (top1 / n) * 100
     top5 = (top5 / n) * 100
