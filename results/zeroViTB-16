@@ -1,0 +1,3 @@
+####### Zero Shot CLIP performance #########
+Epoch 0 - Top1: 89.17 Top5: 99.08
+Predictions: [ 940. 1286.  998. 1035.  992. 1091.  722. 1099.  986.  851.]

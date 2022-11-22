@@ -16,6 +16,7 @@ from losses import ContrastiveLoss
 from utils import *
 from torchvision.utils import save_image
 from torchvision.utils import make_grid
+from dataset_cifar import Cifar10_preprocess2
 
 class AddText(object):
     """
@@ -46,17 +47,16 @@ class AddText(object):
 def train(model):
     model.train()
     train_loss = 0
-    total = 0
-    correct = 0
 
     with tqdm(train_loader, unit="batch") as tepoch:
-        for batch_idx, (data, target) in enumerate(tepoch):
-            data, target = data.to(device), target.to(device)
+        for batch_idx, (img_corr, data, target) in enumerate(tepoch):
+            img_corr, data, target = img_corr.to(device), data.to(device), target.to(device)
             optimizer.zero_grad()
+            corrupt_text = cifar_classes[0] # EDIT THIS!!!   
 
-            text_corrupt = clip.tokenize(["This is a photo of a {corrupt_text}"]).to(device)
-            structured_noise = model(data)    # Structured noise from generator
-            adversary = structured_noise + data          # Add original image to structured noise
+            text_corrupt = clip.tokenize([f"This is a photo of a {corrupt_text}"]).to(device)
+            structured_noise = model(img_corr)      # Structured noise from generator with input as corrupted image
+            adversary = structured_noise + data     # Add original image to structured noise with input as original image
 
             # projection
             adversary = torch.min(torch.max(adversary, data - eps), data + eps)
@@ -86,17 +86,18 @@ def validate(model):
     cnt=0
 
     with tqdm(test_loader, unit="batch") as tepoch:
-        for batch_idx, (data, target) in enumerate(tepoch):
-            data, target = data.to(device), target.to(device)
+        for batch_idx, (img_corr, data, target) in enumerate(tepoch):
+            img_corr, data, target = img_corr.to(device), data.to(device), target.to(device)
+            optimizer.zero_grad()
 
             with torch.no_grad():
-                structured_noise = model(data)
-                adversary = structured_noise + data
+                structured_noise = model(img_corr)      # Structured noise from generator with input as corrupted image
+                adversary = structured_noise + data     # Add original image to structured noise with input as original image
                 adversary = torch.min(torch.max(adversary, data - eps), data + eps)
-                adversary = torch.clamp(adversary, 0.0, 1.0)
+                # adversary = torch.clamp(adversary, 0.0, 1.0)
                 batch_images = make_grid(adversary, nrow=10, normalize=True)
                 if(cnt==0):
-                    save_image(batch_images, "./Adversary_images/batchimg"+str(cnt)+".png",normalize=False)
+                    save_image(batch_images, "./Adversary_images/batchimg"+str(eps)+".png", normalize=False)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in cifar_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -139,7 +140,7 @@ def zeroshot(model):
             data, target = data.to(device), target.to(device)
             batch_images = make_grid(data, nrow=10, normalize=True)
             if(cnt==0):
-                save_image(batch_images, "./original_img/batchimg"+str(cnt)+".png",normalize=False)
+                save_image(batch_images, "./original_img/batchimg"+str(eps)+".png", normalize=False)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in cifar_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -180,28 +181,34 @@ if __name__ == '__main__':
     model.to(device)
     criterion = ContrastiveLoss()
     optimizer = torch.optim.AdamW(list(model.parameters()), lr=5e-6)
-    batch_size = 32
+    batch_size = 24
     epochs = 10
     print("Loaded generator model")
 
     cifar_classes = get_cifar10_classes('./data/cifar10/batches.meta')
     print(cifar_classes)
     preprocess_corrupt = transforms.Compose([AddText(cifar_classes, fontsize=fontsize, index=idx), preprocess])
-    trainset = torchvision.datasets.CIFAR10(root='./data/cifar10', train=True, download=False, transform=preprocess_corrupt)
+    # trainset = torchvision.datasets.CIFAR10(root='./data/cifar10', train=True, download=False, transform=torch.tensor)
+    # train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+
+    # testset = torchvision.datasets.CIFAR10(root='./data/cifar10', train=False, download=False, transform=preprocess)
+    # test_loader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
+
+    trainset = Cifar10_preprocess2(root='./data/cifar10', train=True, download=False, transform_corr=preprocess_corrupt, transform=preprocess)
     train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
 
-    testset = torchvision.datasets.CIFAR10(root='./data/cifar10', train=False, download=False, transform=preprocess_corrupt)
+    testset = Cifar10_preprocess2(root='./data/cifar10', train=False, download=False, transform_corr=preprocess_corrupt, transform=preprocess)
     test_loader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
     zeroshot_set = torchvision.datasets.CIFAR10(root='./data/cifar10', train=False, download=False, transform=preprocess)
     zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_set, batch_size=batch_size, shuffle=False, num_workers=2)
 
     for ep in range(epochs):
-        if ep == 0:
-            top1, top5, predictions = zeroshot(model)
-            print(f"####### Zero Shot CLIP performance #########")
-            print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
-            print(f"Predictions: {predictions}")
+        # if ep == 0:
+        #     top1, top5, predictions = zeroshot(model)
+        #     print(f"####### Zero Shot CLIP performance #########")
+        #     print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
+        #     print(f"Predictions: {predictions}")
 
         if ep % 5 == 0:
             top1, top5, predictions = validate(model)
