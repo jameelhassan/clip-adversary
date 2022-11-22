@@ -60,7 +60,7 @@ def train(model):
 
             # projection
             adversary = torch.min(torch.max(adversary, data - eps), data + eps)
-            adversary = torch.clamp(adversary, 0.0, 1.0)
+            # adversary = torch.clamp(adversary, 0.0, 1.0)
             # print(output.shape)
 
             z = featurizer.encode_image(data)
@@ -182,7 +182,7 @@ if __name__ == '__main__':
     criterion = ContrastiveLoss()
     optimizer = torch.optim.AdamW(list(model.parameters()), lr=5e-6)
     batch_size = 24
-    epochs = 50
+    epochs = 10
     print("Loaded generator model")
 
     cifar_classes = get_cifar10_classes('./data/cifar10/batches.meta')
