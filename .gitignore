@@ -1,2 +1,4 @@
 data/*
-checkpoints/
+cluster_out/*
+checkpoints/*
+cluster_out/*
