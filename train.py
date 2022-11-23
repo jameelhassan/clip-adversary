@@ -12,7 +12,7 @@ import json
 from PIL import Image, ImageFont, ImageDraw
 import random
 from our_models import *
-from losses import ContrastiveLoss
+from losses import *
 from utils import *
 from torchvision.utils import save_image
 from torchvision.utils import make_grid
@@ -51,9 +51,13 @@ def train(model):
 
     with tqdm(train_loader, unit="batch") as tepoch:
         for batch_idx, (img_corr, data, text_corr_idx, target) in enumerate(tepoch):
-            img_corr, data, target = img_corr.to(device), data.to(device), target.to(device)
+            img_corr, data, target,text_corr_idx = img_corr.to(device), data.to(device), target.to(device),text_corr_idx.to(device)
             optimizer.zero_grad()
-
+            different_text_ids=target!=text_corr_idx
+            img_corr=img_corr[different_text_ids]
+            data=data[different_text_ids]
+            target=target[different_text_ids]
+            text_corr_idx=text_corr_idx[different_text_ids]
             ## Text corruption generator randomness is the same randomness. ie: text corrupt is the same
             text_corrupt = clip.tokenize([f"This is a photo of a {cifar_classes[corrupt_idx]}" for corrupt_idx in text_corr_idx]).to(device)
             structured_noise = model(img_corr)      # Structured noise from generator with input as corrupted image
@@ -62,15 +66,22 @@ def train(model):
             # projection
             adversary = torch.min(torch.max(adversary, data - eps), data + eps)
             # adversary = torch.clamp(adversary, 0.0, 1.0)
-            # print(output.shape)
+            structured_noise=adversary-data  # obtaining the actual noise added
 
             z = featurizer.encode_image(data)
+
+            if (noise_only_attract):
+                n_hat=featurizer.encode_image(structured_noise)
+
             z_hat = featurizer.encode_image(adversary)
             t_neg = featurizer.encode_text(text_corrupt)
             # t_neg = t_neg.expand #if needed
             # loss = F.mse_loss(z_hat, t_neg) #MSE loss on the corrupted image and text embeddings
 
-            loss = criterion(z_hat, z, t_neg)
+            if (noise_only_attract):
+                loss = criterion_noise(z_hat, z, t_neg,n_hat)
+            else:
+                loss = criterion(z_hat, z, t_neg)
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
@@ -83,13 +94,15 @@ def validate(model):
     predictions = np.zeros(10,)
     top1 = 0.
     top5 = 0.
+    attack_top1 = 0.
+    attack_top5 = 0.
     n = 0.
 
     with tqdm(test_loader, unit="batch") as tepoch:
         for batch_idx, (img_corr, data, text_corr_idx, target) in enumerate(tepoch):
-            img_corr, data, target = img_corr.to(device), data.to(device), target.to(device)
+            img_corr, data, target,text_corr_idx = img_corr.to(device), data.to(device), target.to(device),text_corr_idx.to(device)
             optimizer.zero_grad()
-
+            
             with torch.no_grad():
                 structured_noise = model(img_corr)      # Structured noise from generator with input as corrupted image
                 adversary = structured_noise + data     # Add original image to structured noise with input as original image
@@ -113,14 +126,21 @@ def validate(model):
                 predictions[p] += 1
 
             #Calculate accuracy
-            acc1, acc5 = accuracy(logits, target, topk=(1, 5))
+            acc1, acc5 = accuracy(logits, target, topk=(1, 5)) # should decrease 
+
+            #calculate targetted attack accuracy
+            attack_acc1, attack_acc5 = accuracy(logits, text_corr_idx, topk=(1, 5)) # should increase 
             top1 += acc1
             top5 += acc5
+            attack_top1 += attack_acc1
+            attack_top5 += attack_acc5
             n += data.size(0)
     
     top1 = (top1 / n) * 100
     top5 = (top5 / n) * 100
-    return top1, top5, predictions
+    attack_top1 = (attack_top1 / n) * 100
+    attack_top5 = (attack_top5 / n) * 100
+    return top1, top5,attack_top1,attack_top5, predictions
 
 
 def zeroshot(model):
@@ -179,9 +199,11 @@ if __name__ == '__main__':
     model = GeneratorResnet().to(device)
     model.to(device)
     criterion = ContrastiveLoss()
+    criterion_noise = ContrastiveLoss_with_noise()
     optimizer = torch.optim.AdamW(list(model.parameters()), lr=learning_rate)
-    batch_size = 24
+    batch_size = 32
     epochs = 10
+    noise_only_attract=True # used to control adversary noise only attracted to coruppted text feature
     print("Loaded generator model")
 
     cifar_classes = get_cifar10_classes('./data/cifar10/batches.meta')
@@ -219,14 +241,16 @@ if __name__ == '__main__':
                 f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
                 f.write(100*"-" + "\n")
 
-        if ((ep + 1) % 5 == 0 or ep == 0):
-            top1, top5, predictions = validate(model)
+        if ((ep + 1) % 1 == 0 or ep == 0):
+            top1, top5,attack_top1,attack_top5, predictions = validate(model)
             print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+            print(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
             print(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
 
             with open(f'checkpoints/{clipname}/RandCorr_chk_fs{fontsize}.txt', 'a') as f:
                 f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-                f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
+                f.write(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
+                f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else f.write(f"Corruption predictions - {predictions}\n")
 
             model_weights = model.state_dict()
             torch.save(model_weights, f'checkpoints/{clipname}/RandCorr_chk_ep{ep}.pth')
