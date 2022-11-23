@@ -104,12 +104,11 @@ class AddText(object):
 
 
 caltech_dataset = torchvision.datasets.Caltech101(root='./data/caltech101', download=True, transform=preprocess)
-
 TEXT_CORRUPT = False
 fontsize = 5
 clip_models = clip.available_models()[0:1] + clip.available_models()[6:7]
 print(clip_models)
-datasets = ['cifar10']
+datasets = ['caltech101']
 
 for clipx in clip_models:
     accuracies = {}
@@ -142,7 +141,7 @@ for clipx in clip_models:
             elif dataset == 'cifar100':
                 cifar_classes = get_cifar100_classes('./data/cifar100/meta')
                 print(len(cifar_classes))
-x
+                if TEXT_CORRUPT:
                     preprocess = transforms.Compose([AddText(cifar_classes, fontsize=fontsize), preprocess])
                 # trainset = torchvision.datasets.CIFAR100(root='/home/jameel.hassan/Documents/AI701/data/cifar100', train=True, download=False, transform=preprocess)
                 # trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
