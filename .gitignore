@@ -1,4 +1,4 @@
 data/*
 cluster_out/*
-checkpoints/RN50/*.pth
-checkpoints/ViT-B-16/*.pth
+checkpoints/*
+cluster_out/*
