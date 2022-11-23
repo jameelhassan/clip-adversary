@@ -16,7 +16,7 @@ from losses import *
 from utils import *
 from torchvision.utils import save_image
 from torchvision.utils import make_grid
-from dataset_cifar import Cifar10_preprocess2
+from CustomDatasets import Cifar10_preprocess2, Cifar100_preprocess2, Caltech101_preprocess2
 from time import time
 import datetime
 
@@ -60,7 +60,7 @@ def train(model):
             data = data[different_text_ids]
             target = target[different_text_ids]
             text_corr_idx = text_corr_idx[different_text_ids]
-            ## Text corruption generator randomness is the same randomness. ie: text corrupt is the same
+            
             text_corrupt = clip.tokenize([f"This is a photo of a {cifar_classes[corrupt_idx]}" for corrupt_idx in text_corr_idx]).to(device)
             structured_noise = model(img_corr)      # Structured noise from generator with input as corrupted image
             adversary = structured_noise + data     # Add original image to structured noise with input as original image
@@ -81,7 +81,7 @@ def train(model):
             # loss = F.mse_loss(z_hat, t_neg) #MSE loss on the corrupted image and text embeddings
 
             if (noise_only_attract):
-                loss = criterion_noise(z_hat, z, t_neg,n_hat)
+                loss = criterion_noise(z_hat, z, t_neg, n_hat)
             else:
                 loss = criterion(z_hat, z, t_neg)
             loss.backward()
@@ -112,7 +112,7 @@ def validate(model):
                 # adversary = torch.clamp(adversary, 0.0, 1.0)
                 batch_images = make_grid(adversary, nrow=10, normalize=True)
                 if (batch_idx == 0):
-                    save_image(batch_images, f"./Adversary_images/{clipname}/epoch{ep}_eps{str(eps)}.png", normalize=False)
+                    save_image(batch_images, f"./Adversary_images/{clipname}/{DATASET}/epoch{ep}_eps{str(eps)}.png", normalize=False)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in cifar_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -160,7 +160,7 @@ def zeroshot(model):
             data, target = data.to(device), target.to(device)
             batch_images = make_grid(data, nrow=10, normalize=True)
             if (batch_idx == 0):
-                save_image(batch_images, f"./original_img/{clipname}/epoch{ep}.png", normalize=False)
+                save_image(batch_images, f"./original_img/{clipname}/{DATASET}/epoch{ep}.png", normalize=False)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in cifar_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -188,17 +188,18 @@ def zeroshot(model):
 
 if __name__ == '__main__':
     ct = datetime.datetime.now()
-    MODEL_TAG = 'ContLoss'
+    MODEL_TAG = 'ContLoss_eps01'
+    DATASET = 'CIFAR100'
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     # clip_models = clip.available_models()[0:1] + clip.available_models()[6:7]
-    clipname = 'ViT-B/16'
+    clipname = 'RN50'
     featurizer, preprocess = clip.load(clipname)
     featurizer = featurizer.float().to(device)
     print("Loaded clip model")
     fontsize = 5
-    idx = None # Index of class to be added as text
-    eps = 0.05 # Epsilon for projection
+    idx = None # Index of class to be added as text else random
+    eps = 0.1 # Epsilon for projection
     learning_rate = 1e-4
 
     model = GeneratorResnet().to(device)
@@ -211,26 +212,41 @@ if __name__ == '__main__':
     noise_only_attract = False # used to control adversary noise only attracted to coruppted text feature
     print("Loaded generator model")
 
-    cifar_classes = get_cifar10_classes('./data/cifar10/batches.meta')
-    print(cifar_classes)
-    preprocess_corrupt = transforms.Compose([AddText(cifar_classes, fontsize=fontsize, index=idx), preprocess])
+    if DATASET == 'CIFAR10':
+        cifar_classes = get_cifar10_classes('./data/cifar10/batches.meta')
+        print(cifar_classes)
+        preprocess_corrupt = transforms.Compose([AddText(cifar_classes, fontsize=fontsize, index=idx), preprocess])
 
-    trainset = Cifar10_preprocess2(root='./data/cifar10', train=True, download=False, transform_corr=preprocess_corrupt, transform=preprocess)
-    train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+        trainset = Cifar10_preprocess2(root='./data/cifar10', train=True, download=False, transform_corr=preprocess_corrupt, transform=preprocess)
+        train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
 
-    testset = Cifar10_preprocess2(root='./data/cifar10', train=False, download=False, transform_corr=preprocess_corrupt, transform=preprocess)
-    test_loader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
+        testset = Cifar10_preprocess2(root='./data/cifar10', train=False, download=False, transform_corr=preprocess_corrupt, transform=preprocess)
+        test_loader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
-    zeroshot_set = torchvision.datasets.CIFAR10(root='./data/cifar10', train=False, download=False, transform=preprocess)
-    zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_set, batch_size=batch_size, shuffle=False, num_workers=2)
+        zeroshot_set = torchvision.datasets.CIFAR10(root='./data/cifar10', train=False, download=False, transform=preprocess)
+        zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_set, batch_size=batch_size, shuffle=False, num_workers=2)
+
+    elif DATASET == 'CIFAR100':
+        cifar_classes = get_cifar100_classes('./data/cifar100/meta')
+        print(cifar_classes)
+        preprocess_corrupt = transforms.Compose([AddText(cifar_classes, fontsize=fontsize, index=idx), preprocess])
+
+        trainset = Cifar100_preprocess2(root='./data/cifar100', train=True, download=True, transform_corr=preprocess_corrupt, transform=preprocess)
+        train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+
+        testset = Cifar100_preprocess2(root='./data/cifar100', train=False, download=True, transform_corr=preprocess_corrupt, transform=preprocess)
+        test_loader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
+
+        zeroshot_set = torchvision.datasets.CIFAR100(root='./data/cifar100', train=False, download=False, transform=preprocess)
+        zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_set, batch_size=batch_size, shuffle=False, num_workers=2)
 
     clipname = clipname.replace('/', '-')
-    if not os.path.exists(f"./Adversary_images/{clipname}/"):
-        os.makedirs(f"./Adversary_images/{clipname}/")
-        os.makedirs(f"./original_img/{clipname}")
+    if not os.path.exists(f"./Adversary_images/{clipname}/{DATASET}"):
+        os.makedirs(f"./Adversary_images/{clipname}/{DATASET}")
+        os.makedirs(f"./original_img/{clipname}/{DATASET}")
 
-    if not os.path.exists(f'./checkpoints/{clipname}/'):
-        os.makedirs(f'./checkpoints/{clipname}/')
+    if not os.path.exists(f'./checkpoints/{clipname}/{DATASET}'):
+        os.makedirs(f'./checkpoints/{clipname}/{DATASET}')
 
     start = time()
     for ep in range(epochs):
@@ -240,29 +256,29 @@ if __name__ == '__main__':
             # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
             # print(f"Predictions: {predictions}")
 
-            with open(f'checkpoints/{clipname}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+            with open(f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
                 f.write(f"####### Zero Shot CLIP performance #########\n")
-                f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
                 f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
+                f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
                 f.write(100*"-" + "\n")
 
-        if ((ep + 1) % 1 == 0 or ep == 0):
+        if ((ep + 1) % 5 == 0 or ep == 0):
             top1, top5,attack_top1,attack_top5, predictions = validate(model)
+            print(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
             print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
             print(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
-            print(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
 
-            with open(f'checkpoints/{clipname}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
-                f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-                f.write(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
+            with open(f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
                 f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else f.write(f"Corruption predictions - {predictions}\n")
+                f.write(f"\nEpoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+                f.write(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
 
             model_weights = model.state_dict()
-            torch.save(model_weights, f'checkpoints/{clipname}/{MODEL_TAG}_{ct}_chk_ep{ep}.pth')
+            torch.save(model_weights, f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_ep{ep}.pth')
 
         train_loss = train(model)
         print(f"Epoch {ep} - Train loss: {train_loss:.2f}")
-        with open(f'checkpoints/{clipname}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+        with open(f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
             f.write(f"Epoch {ep} - Train loss: {train_loss:.2f}\n")
         
     end = time()

@@ -103,8 +103,10 @@ class AddText(object):
 
 
 
-TEXT_CORRUPT = True
-fontsize = 7
+caltech_dataset = torchvision.datasets.Caltech101(root='./data/caltech101', download=True, transform=preprocess)
+
+TEXT_CORRUPT = False
+fontsize = 5
 clip_models = clip.available_models()[0:1] + clip.available_models()[6:7]
 print(clip_models)
 datasets = ['cifar10']
@@ -140,13 +142,21 @@ for clipx in clip_models:
             elif dataset == 'cifar100':
                 cifar_classes = get_cifar100_classes('./data/cifar100/meta')
                 print(len(cifar_classes))
-                if TEXT_CORRUPT:
+x
                     preprocess = transforms.Compose([AddText(cifar_classes, fontsize=fontsize), preprocess])
                 # trainset = torchvision.datasets.CIFAR100(root='/home/jameel.hassan/Documents/AI701/data/cifar100', train=True, download=False, transform=preprocess)
                 # trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
 
                 testset = torchvision.datasets.CIFAR100(root='./data/cifar100', train=False, download=False, transform=preprocess)
                 testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
+            elif dataset == 'caltech101':
+                if TEXT_CORRUPT:
+                    preprocess = transforms.Compose([AddText(cifar_classes, fontsize=fontsize), preprocess])
+                # caltech_dataset = torchvision.datasets.Caltech101(root='./data/caltech101', download=True, transform=preprocess)
+                # trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+
+                # testset = torchvision.datasets.Caltech101(root='./data/caltech101', download=False, transform=preprocess)
+                # testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
             else:
                 print("Dataset other than CIFAR requested.")
 
