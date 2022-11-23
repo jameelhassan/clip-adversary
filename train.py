@@ -53,11 +53,11 @@ def train(model):
         for batch_idx, (img_corr, data, text_corr_idx, target) in enumerate(tepoch):
             img_corr, data, target,text_corr_idx = img_corr.to(device), data.to(device), target.to(device),text_corr_idx.to(device)
             optimizer.zero_grad()
-            different_text_ids=target!=text_corr_idx
-            img_corr=img_corr[different_text_ids]
-            data=data[different_text_ids]
-            target=target[different_text_ids]
-            text_corr_idx=text_corr_idx[different_text_ids]
+            different_text_ids = target!=text_corr_idx
+            img_corr = img_corr[different_text_ids]
+            data = data[different_text_ids]
+            target = target[different_text_ids]
+            text_corr_idx = text_corr_idx[different_text_ids]
             ## Text corruption generator randomness is the same randomness. ie: text corrupt is the same
             text_corrupt = clip.tokenize([f"This is a photo of a {cifar_classes[corrupt_idx]}" for corrupt_idx in text_corr_idx]).to(device)
             structured_noise = model(img_corr)      # Structured noise from generator with input as corrupted image
@@ -66,12 +66,12 @@ def train(model):
             # projection
             adversary = torch.min(torch.max(adversary, data - eps), data + eps)
             # adversary = torch.clamp(adversary, 0.0, 1.0)
-            structured_noise=adversary-data  # obtaining the actual noise added
+            structured_noise = adversary-data  # obtaining the actual noise added
 
             z = featurizer.encode_image(data)
 
             if (noise_only_attract):
-                n_hat=featurizer.encode_image(structured_noise)
+                n_hat = featurizer.encode_image(structured_noise)
 
             z_hat = featurizer.encode_image(adversary)
             t_neg = featurizer.encode_text(text_corrupt)
@@ -100,7 +100,7 @@ def validate(model):
 
     with tqdm(test_loader, unit="batch") as tepoch:
         for batch_idx, (img_corr, data, text_corr_idx, target) in enumerate(tepoch):
-            img_corr, data, target,text_corr_idx = img_corr.to(device), data.to(device), target.to(device),text_corr_idx.to(device)
+            img_corr, data, target, text_corr_idx = img_corr.to(device), data.to(device), target.to(device), text_corr_idx.to(device)
             optimizer.zero_grad()
             
             with torch.no_grad():
@@ -201,9 +201,9 @@ if __name__ == '__main__':
     criterion = ContrastiveLoss()
     criterion_noise = ContrastiveLoss_with_noise()
     optimizer = torch.optim.AdamW(list(model.parameters()), lr=learning_rate)
-    batch_size = 32
+    batch_size = 24
     epochs = 10
-    noise_only_attract=True # used to control adversary noise only attracted to coruppted text feature
+    noise_only_attract = False # used to control adversary noise only attracted to coruppted text feature
     print("Loaded generator model")
 
     cifar_classes = get_cifar10_classes('./data/cifar10/batches.meta')
@@ -229,17 +229,17 @@ if __name__ == '__main__':
 
     
     for ep in range(epochs):
-        if ep == 0:
-            print(f"####### Zero Shot CLIP performance #########")
-            top1, top5, predictions = zeroshot(model)
-            # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
-            # print(f"Predictions: {predictions}")
+        # if ep == 0:
+        #     print(f"####### Zero Shot CLIP performance #########")
+        #     top1, top5, predictions = zeroshot(model)
+        #     # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
+        #     # print(f"Predictions: {predictions}")
 
-            with open(f'checkpoints/{clipname}/RandCorr_chk_fs{fontsize}.txt', 'a') as f:
-                f.write(f"####### Zero Shot CLIP performance #########\n")
-                f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-                f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
-                f.write(100*"-" + "\n")
+        #     with open(f'checkpoints/{clipname}/RandCorr_chk_fs{fontsize}.txt', 'a') as f:
+        #         f.write(f"####### Zero Shot CLIP performance #########\n")
+        #         f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+        #         f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
+        #         f.write(100*"-" + "\n")
 
         if ((ep + 1) % 1 == 0 or ep == 0):
             top1, top5,attack_top1,attack_top5, predictions = validate(model)
