@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=LR1e-4RN50             # Job name
-#SBATCH --output=./cluster_out/outputRN50.%A_%a.txt   # Standard output and error log
+#SBATCH --job-name=LR1e-4_ViTB16             # Job name
+#SBATCH --output=./cluster_out/outputViTB16.%A_%a.txt   # Standard output and error log
 #SBATCH --nodes=1                   # Run all processes on a single node    
 #SBATCH --ntasks=1                  # Run on a single CPU
 #SBATCH --mem=40G                   # Total RAM to be used

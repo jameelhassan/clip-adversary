@@ -83,7 +83,6 @@ def validate(model):
     top1 = 0.
     top5 = 0.
     n = 0.
-    cnt=0
 
     with tqdm(test_loader, unit="batch") as tepoch:
         for batch_idx, (img_corr, data, target) in enumerate(tepoch):
@@ -96,8 +95,8 @@ def validate(model):
                 adversary = torch.min(torch.max(adversary, data - eps), data + eps)
                 # adversary = torch.clamp(adversary, 0.0, 1.0)
                 batch_images = make_grid(adversary, nrow=10, normalize=True)
-                if(cnt==0):
-                    save_image(batch_images, "./Adversary_images/batchimg"+str(eps)+".png", normalize=False)
+                if (batch_idx == 0):
+                    save_image(batch_images, f"./Adversary_images/{clipname}/epoch{ep}_eps{str(eps)}.png", normalize=False)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in cifar_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -117,7 +116,6 @@ def validate(model):
             top1 += acc1
             top5 += acc5
             n += data.size(0)
-            cnt+=1
     
     top1 = (top1 / n) * 100
     top5 = (top5 / n) * 100
@@ -133,14 +131,13 @@ def zeroshot(model):
     top1 = 0.
     top5 = 0.
     n = 0.
-    cnt=0
 
     with tqdm(zeroshot_loader, unit="batch") as tepoch:
         for batch_idx, (data, target) in enumerate(tepoch):
             data, target = data.to(device), target.to(device)
             batch_images = make_grid(data, nrow=10, normalize=True)
-            if(cnt==0):
-                save_image(batch_images, "./original_img/batchimg"+str(eps)+".png", normalize=False)
+            if (batch_idx == 0):
+                save_image(batch_images, f"./original_img/{clipname}/epoch{ep}.png", normalize=False)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in cifar_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -160,7 +157,6 @@ def zeroshot(model):
             top1 += acc1
             top5 += acc5
             n += data.size(0)
-            cnt+=1
     
     top1 = (top1 / n) * 100
     top5 = (top5 / n) * 100
@@ -170,7 +166,7 @@ def zeroshot(model):
 if __name__ == '__main__':
     device = "cuda" if torch.cuda.is_available() else "cpu"
     # clip_models = clip.available_models()[0:1] + clip.available_models()[6:7]
-    clipname = 'RN50'
+    clipname = 'ViT-B/16'
     featurizer, preprocess = clip.load(clipname)
     featurizer = featurizer.float().to(device)
     print("Loaded clip model")
@@ -200,24 +196,34 @@ if __name__ == '__main__':
     zeroshot_set = torchvision.datasets.CIFAR10(root='./data/cifar10', train=False, download=False, transform=preprocess)
     zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_set, batch_size=batch_size, shuffle=False, num_workers=2)
 
+    clipname = clipname.replace('/', '-')
+    if not os.path.exists(f"./Adversary_images/{clipname}/"):
+        os.makedirs(f"./Adversary_images/{clipname}/")
+        os.makedirs(f"./original_img/{clipname}")
 
     if not os.path.exists(f'./checkpoints/{clipname}/'):
         os.makedirs(f'./checkpoints/{clipname}/')
 
     
     for ep in range(epochs):
-        # if ep == 0:
-        # print(f"####### Zero Shot CLIP performance #########")
-        #     top1, top5, predictions = zeroshot(model)
-        #     print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
-        #     print(f"Predictions: {predictions}")
+        if ep == 0:
+            print(f"####### Zero Shot CLIP performance #########")
+            top1, top5, predictions = zeroshot(model)
+            # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
+            # print(f"Predictions: {predictions}")
 
-        if ep % 5 == 0:
+            with open(f'checkpoints/{clipname}/chk_fs{fontsize}.txt', 'a') as f:
+                f.write(f"####### Zero Shot CLIP performance #########\n")
+                f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+                f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n")
+                f.write(100*"-" + "\n")
+
+        if ((ep + 1) % 5 == 0 or ep == 0):
             top1, top5, predictions = validate(model)
             print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
             print(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n")
 
-            with open(f'checkpoints/{clipname}/chk_ep{ep}_fs{fontsize}.txt', 'a') as f:
+            with open(f'checkpoints/{clipname}/chk_fs{fontsize}.txt', 'a') as f:
                 f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
                 f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n")
 
@@ -226,6 +232,6 @@ if __name__ == '__main__':
 
         train_loss = train(model)
         print(f"Epoch {ep} - Train loss: {train_loss:.2f}")
-        with open(f'checkpoints/{clipname}/chk_ep{ep}_fs{fontsize}.txt', 'a') as f:
+        with open(f'checkpoints/{clipname}/chk_ep_fs{fontsize}.txt', 'a') as f:
             f.write(f"Epoch {ep} - Train loss: {train_loss:.2f}\n")
         
