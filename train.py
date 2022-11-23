@@ -93,7 +93,7 @@ def train(model):
 
 def validate(model):   
     model.eval()
-    predictions = np.zeros(10,)
+    predictions = np.zeros(len(cifar_classes))
     top1 = 0.
     top5 = 0.
     attack_top1 = 0.
@@ -150,7 +150,7 @@ def zeroshot(model):
     Zero-shot classification using CLIP
     """
     model.eval()
-    predictions = np.zeros(10,)
+    predictions = np.zeros(len(cifar_classes))
     top1 = 0.
     top5 = 0.
     n = 0.
@@ -193,7 +193,7 @@ if __name__ == '__main__':
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     # clip_models = clip.available_models()[0:1] + clip.available_models()[6:7]
-    clipname = 'RN50'
+    clipname = 'ViT-B/16'
     featurizer, preprocess = clip.load(clipname)
     featurizer = featurizer.float().to(device)
     print("Loaded clip model")
@@ -208,7 +208,7 @@ if __name__ == '__main__':
     criterion_noise = ContrastiveLoss_with_noise()
     optimizer = torch.optim.AdamW(list(model.parameters()), lr=learning_rate)
     batch_size = 24
-    epochs = 10
+    epochs = 20
     noise_only_attract = False # used to control adversary noise only attracted to coruppted text feature
     print("Loaded generator model")
 
@@ -231,10 +231,10 @@ if __name__ == '__main__':
         print(cifar_classes)
         preprocess_corrupt = transforms.Compose([AddText(cifar_classes, fontsize=fontsize, index=idx), preprocess])
 
-        trainset = Cifar100_preprocess2(root='./data/cifar100', train=True, download=True, transform_corr=preprocess_corrupt, transform=preprocess)
+        trainset = Cifar100_preprocess2(root='./data/cifar100', train=True, download=False, transform_corr=preprocess_corrupt, transform=preprocess)
         train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
 
-        testset = Cifar100_preprocess2(root='./data/cifar100', train=False, download=True, transform_corr=preprocess_corrupt, transform=preprocess)
+        testset = Cifar100_preprocess2(root='./data/cifar100', train=False, download=False, transform_corr=preprocess_corrupt, transform=preprocess)
         test_loader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
         zeroshot_set = torchvision.datasets.CIFAR100(root='./data/cifar100', train=False, download=False, transform=preprocess)
