@@ -207,34 +207,32 @@ if __name__ == '__main__':
 
     
     for ep in range(epochs):
-        # if ep == 0:
-        #     print(f"####### Zero Shot CLIP performance #########")
-        #     top1, top5, predictions = zeroshot(model)
-        #     # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
-        #     # print(f"Predictions: {predictions}")
+        if ep == 0:
+            print(f"####### Zero Shot CLIP performance #########")
+            top1, top5, predictions = zeroshot(model)
+            # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
+            # print(f"Predictions: {predictions}")
 
-        #     with open(f'checkpoints/{clipname}/chk_fs{fontsize}.txt', 'a') as f:
-        #         f.write(f"####### Zero Shot CLIP performance #########\n")
-        #         f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-        #         f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n")
-        #         f.write(100*"-" + "\n")
+            with open(f'checkpoints/{clipname}/RandCorr_chk_fs{fontsize}.txt', 'a') as f:
+                f.write(f"####### Zero Shot CLIP performance #########\n")
+                f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+                f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
+                f.write(100*"-" + "\n")
 
         if ((ep + 1) % 5 == 0 or ep == 0):
             top1, top5, predictions = validate(model)
             print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-            print(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None \
-                else print(f"Corruption predictions - {predictions}\n")
+            print(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
 
-            with open(f'checkpoints/{clipname}/chk_fs{fontsize}.txt', 'a') as f:
+            with open(f'checkpoints/{clipname}/RandCorr_chk_fs{fontsize}.txt', 'a') as f:
                 f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-                f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None \
-                else print(f"Corruption predictions - {predictions}\n")
+                f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
 
             model_weights = model.state_dict()
-            torch.save(model_weights, f'checkpoints/{clipname}/chk_ep{ep}.pth')
+            torch.save(model_weights, f'checkpoints/{clipname}/RandCorr_chk_ep{ep}.pth')
 
         train_loss = train(model)
         print(f"Epoch {ep} - Train loss: {train_loss:.2f}")
-        with open(f'checkpoints/{clipname}/chk_ep_fs{fontsize}.txt', 'a') as f:
+        with open(f'checkpoints/{clipname}/RandCorr_chk_fs{fontsize}.txt', 'a') as f:
             f.write(f"Epoch {ep} - Train loss: {train_loss:.2f}\n")
         
