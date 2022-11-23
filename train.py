@@ -17,6 +17,8 @@ from utils import *
 from torchvision.utils import save_image
 from torchvision.utils import make_grid
 from dataset_cifar import Cifar10_preprocess2
+from time import time
+import datetime
 
 class AddText(object):
     """
@@ -185,6 +187,9 @@ def zeroshot(model):
     
 
 if __name__ == '__main__':
+    ct = datetime.datetime.now()
+    MODEL_TAG = 'ContLoss'
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     # clip_models = clip.available_models()[0:1] + clip.available_models()[6:7]
     clipname = 'ViT-B/16'
@@ -227,19 +232,19 @@ if __name__ == '__main__':
     if not os.path.exists(f'./checkpoints/{clipname}/'):
         os.makedirs(f'./checkpoints/{clipname}/')
 
-    
+    start = time()
     for ep in range(epochs):
-        # if ep == 0:
-        #     print(f"####### Zero Shot CLIP performance #########")
-        #     top1, top5, predictions = zeroshot(model)
-        #     # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
-        #     # print(f"Predictions: {predictions}")
+        if ep == 0:
+            print(f"####### Zero Shot CLIP performance #########")
+            top1, top5, predictions = zeroshot(model)
+            # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
+            # print(f"Predictions: {predictions}")
 
-        #     with open(f'checkpoints/{clipname}/RandCorr_chk_fs{fontsize}.txt', 'a') as f:
-        #         f.write(f"####### Zero Shot CLIP performance #########\n")
-        #         f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-        #         f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
-        #         f.write(100*"-" + "\n")
+            with open(f'checkpoints/{clipname}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+                f.write(f"####### Zero Shot CLIP performance #########\n")
+                f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+                f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
+                f.write(100*"-" + "\n")
 
         if ((ep + 1) % 1 == 0 or ep == 0):
             top1, top5,attack_top1,attack_top5, predictions = validate(model)
@@ -247,16 +252,20 @@ if __name__ == '__main__':
             print(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
             print(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
 
-            with open(f'checkpoints/{clipname}/RandCorr_chk_fs{fontsize}.txt', 'a') as f:
+            with open(f'checkpoints/{clipname}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
                 f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
                 f.write(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
                 f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else f.write(f"Corruption predictions - {predictions}\n")
 
             model_weights = model.state_dict()
-            torch.save(model_weights, f'checkpoints/{clipname}/RandCorr_chk_ep{ep}.pth')
+            torch.save(model_weights, f'checkpoints/{clipname}/{MODEL_TAG}_{ct}_chk_ep{ep}.pth')
 
         train_loss = train(model)
         print(f"Epoch {ep} - Train loss: {train_loss:.2f}")
-        with open(f'checkpoints/{clipname}/RandCorr_chk_fs{fontsize}.txt', 'a') as f:
+        with open(f'checkpoints/{clipname}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
             f.write(f"Epoch {ep} - Train loss: {train_loss:.2f}\n")
         
+    end = time()
+    hours, rem = divmod(end - start, 3600)
+    mins, secs = divmod(rem, 60)
+    print(f"Total time taken: {hours:.0f}:{mins:.0f}:{secs:.0f}")
