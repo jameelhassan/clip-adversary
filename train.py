@@ -188,7 +188,7 @@ def zeroshot(model):
 
 if __name__ == '__main__':
     ct = datetime.datetime.now()
-    MODEL_TAG = 'ContLoss'
+    MODEL_TAG = 'ContLoss_eps01'
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     # clip_models = clip.available_models()[0:1] + clip.available_models()[6:7]
@@ -198,7 +198,7 @@ if __name__ == '__main__':
     print("Loaded clip model")
     fontsize = 5
     idx = None # Index of class to be added as text
-    eps = 0.05 # Epsilon for projection
+    eps = 0.1 # Epsilon for projection
     learning_rate = 1e-4
 
     model = GeneratorResnet().to(device)
@@ -246,7 +246,7 @@ if __name__ == '__main__':
                 f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
                 f.write(100*"-" + "\n")
 
-        if ((ep + 1) % 1 == 0 or ep == 0):
+        if ((ep + 1) % 5 == 0 or ep == 0):
             top1, top5,attack_top1,attack_top5, predictions = validate(model)
             print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
             print(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
