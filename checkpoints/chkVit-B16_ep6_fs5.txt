@@ -1,0 +1,8 @@
+Epoch 1 - Train loss: 734.19
+Epoch 2 - Train loss: 726.97
+Epoch 3 - Train loss: 723.12
+Epoch 4 - Train loss: 718.45
+Epoch 5 - Top1: 54.67 Top5: 85.09
+Class label 0: airplane corruption predictions - [3939.  592.  615.  614.  285.  949.   89. 1331.  517. 1069.]
+Epoch 5 - Train loss: 713.40
+Epoch 6 - Train loss: 740.25

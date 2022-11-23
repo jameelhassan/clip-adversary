@@ -176,11 +176,12 @@ if __name__ == '__main__':
     fontsize = 5
     idx = 0 # Index of class to be added as text
     eps = 0.05 # Epsilon for projection
+    learning_rate = 1e-4
 
     model = GeneratorResnet().to(device)
     model.to(device)
     criterion = ContrastiveLoss()
-    optimizer = torch.optim.AdamW(list(model.parameters()), lr=5e-6)
+    optimizer = torch.optim.AdamW(list(model.parameters()), lr=learning_rate)
     batch_size = 24
     epochs = 10
     print("Loaded generator model")
@@ -205,10 +206,10 @@ if __name__ == '__main__':
     
     for ep in range(epochs):
         # if ep == 0:
-        #     top1, top5, predictions = zeroshot(model)
-        #     print(f"####### Zero Shot CLIP performance #########")
-        #     print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
-        #     print(f"Predictions: {predictions}")
+            # print(f"####### Zero Shot CLIP performance #########")
+            # top1, top5, predictions = zeroshot(model)
+            # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
+            # print(f"Predictions: {predictions}")
 
         if ep % 5 == 0:
             top1, top5, predictions = validate(model)
