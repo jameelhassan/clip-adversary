@@ -22,16 +22,17 @@ class AddText(object):
     """
     Add a randomly chosen class as text on the image
     """
-    def __init__(self, classes, fontsize=5, index=0, random_choice=False):
+    def __init__(self, classes, fontsize=5, index=None):
         self.classes = classes
-        self.index = random.choice(range(len(classes))) if index None else index # Randomly get index of class to corrupt if not specified
+        self.index = index
         self.fontsize = fontsize
-        self.random_choice = random_choice
+        self.random_choice = True if self.index is None else False
         self.font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', self.fontsize)
 
     def __call__(self, sample):
         image = sample
-        text_class = np.random.choice(self.classes) if self.random_choice else self.classes[self.index]
+        self.index = np.random.choice(range(len(self.classes))) if self.random_choice else self.index
+        text_class = self.classes[self.index]
         img_tf = ImageDraw.Draw(image)
         
         #Setting possible positions and colours of text and choosing one in random 
@@ -52,9 +53,9 @@ def train(model):
         for batch_idx, (img_corr, data, text_corr_idx, target) in enumerate(tepoch):
             img_corr, data, target = img_corr.to(device), data.to(device), target.to(device)
             optimizer.zero_grad()
-            corrupt_text = cifar_classes[text_corr_idx] # Get the class of corrupt label added to image
 
-            text_corrupt = clip.tokenize([f"This is a photo of a {corrupt_text}"]).to(device)
+            ## Text corruption generator randomness is the same randomness. ie: text corrupt is the same
+            text_corrupt = clip.tokenize([f"This is a photo of a {cifar_classes[corrupt_idx]}" for corrupt_idx in text_corr_idx]).to(device)
             structured_noise = model(img_corr)      # Structured noise from generator with input as corrupted image
             adversary = structured_noise + data     # Add original image to structured noise with input as original image
 
@@ -206,26 +207,28 @@ if __name__ == '__main__':
 
     
     for ep in range(epochs):
-        if ep == 0:
-            print(f"####### Zero Shot CLIP performance #########")
-            top1, top5, predictions = zeroshot(model)
-            # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
-            # print(f"Predictions: {predictions}")
+        # if ep == 0:
+        #     print(f"####### Zero Shot CLIP performance #########")
+        #     top1, top5, predictions = zeroshot(model)
+        #     # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
+        #     # print(f"Predictions: {predictions}")
 
-            with open(f'checkpoints/{clipname}/chk_fs{fontsize}.txt', 'a') as f:
-                f.write(f"####### Zero Shot CLIP performance #########\n")
-                f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-                f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n")
-                f.write(100*"-" + "\n")
+        #     with open(f'checkpoints/{clipname}/chk_fs{fontsize}.txt', 'a') as f:
+        #         f.write(f"####### Zero Shot CLIP performance #########\n")
+        #         f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+        #         f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n")
+        #         f.write(100*"-" + "\n")
 
         if ((ep + 1) % 5 == 0 or ep == 0):
             top1, top5, predictions = validate(model)
             print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-            print(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n")
+            print(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None \
+                else print(f"Corruption predictions - {predictions}\n")
 
             with open(f'checkpoints/{clipname}/chk_fs{fontsize}.txt', 'a') as f:
                 f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-                f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n")
+                f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None \
+                else print(f"Corruption predictions - {predictions}\n")
 
             model_weights = model.state_dict()
             torch.save(model_weights, f'checkpoints/{clipname}/chk_ep{ep}.pth')
