@@ -24,7 +24,7 @@ class AddText(object):
     """
     def __init__(self, classes, fontsize=5, index=0, random_choice=False):
         self.classes = classes
-        self.index = index
+        self.index = random.choice(range(len(classes))) if index None else index # Randomly get index of class to corrupt if not specified
         self.fontsize = fontsize
         self.random_choice = random_choice
         self.font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', self.fontsize)
@@ -49,10 +49,10 @@ def train(model):
     train_loss = 0
 
     with tqdm(train_loader, unit="batch") as tepoch:
-        for batch_idx, (img_corr, data, target) in enumerate(tepoch):
+        for batch_idx, (img_corr, data, text_corr_idx, target) in enumerate(tepoch):
             img_corr, data, target = img_corr.to(device), data.to(device), target.to(device)
             optimizer.zero_grad()
-            corrupt_text = cifar_classes[idx] # EDIT THIS!!!   
+            corrupt_text = cifar_classes[text_corr_idx] # Get the class of corrupt label added to image
 
             text_corrupt = clip.tokenize([f"This is a photo of a {corrupt_text}"]).to(device)
             structured_noise = model(img_corr)      # Structured noise from generator with input as corrupted image
@@ -85,7 +85,7 @@ def validate(model):
     n = 0.
 
     with tqdm(test_loader, unit="batch") as tepoch:
-        for batch_idx, (img_corr, data, target) in enumerate(tepoch):
+        for batch_idx, (img_corr, data, text_corr_idx, target) in enumerate(tepoch):
             img_corr, data, target = img_corr.to(device), data.to(device), target.to(device)
             optimizer.zero_grad()
 
@@ -171,7 +171,7 @@ if __name__ == '__main__':
     featurizer = featurizer.float().to(device)
     print("Loaded clip model")
     fontsize = 5
-    idx = 0 # Index of class to be added as text
+    idx = None # Index of class to be added as text
     eps = 0.05 # Epsilon for projection
     learning_rate = 1e-4
 
