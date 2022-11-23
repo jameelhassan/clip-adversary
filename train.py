@@ -27,7 +27,7 @@ class AddText(object):
         self.index = index
         self.fontsize = fontsize
         self.random_choice = random_choice
-        self.font = ImageFont.truetype('/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf', self.fontsize)
+        self.font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', self.fontsize)
 
     def __call__(self, sample):
         image = sample
@@ -169,18 +169,20 @@ def zeroshot(model):
 
 if __name__ == '__main__':
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    clip_models = clip.available_models()[0:1] + clip.available_models()[6:7]
-    featurizer, preprocess = clip.load('ViT-B/16')
+    # clip_models = clip.available_models()[0:1] + clip.available_models()[6:7]
+    clipname = 'RN50'
+    featurizer, preprocess = clip.load(clipname)
     featurizer = featurizer.float().to(device)
     print("Loaded clip model")
     fontsize = 5
     idx = 0 # Index of class to be added as text
     eps = 0.05 # Epsilon for projection
+    learning_rate = 1e-4
 
     model = GeneratorResnet().to(device)
     model.to(device)
     criterion = ContrastiveLoss()
-    optimizer = torch.optim.AdamW(list(model.parameters()), lr=5e-6)
+    optimizer = torch.optim.AdamW(list(model.parameters()), lr=learning_rate)
     batch_size = 24
     epochs = 10
     print("Loaded generator model")
@@ -199,14 +201,14 @@ if __name__ == '__main__':
     zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_set, batch_size=batch_size, shuffle=False, num_workers=2)
 
 
-    if not os.path.exists('./checkpoints'):
-        os.makedirs('./checkpoints')
+    if not os.path.exists(f'./checkpoints/{clipname}/'):
+        os.makedirs(f'./checkpoints/{clipname}/')
 
     
     for ep in range(epochs):
         # if ep == 0:
+        # print(f"####### Zero Shot CLIP performance #########")
         #     top1, top5, predictions = zeroshot(model)
-        #     print(f"####### Zero Shot CLIP performance #########")
         #     print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
         #     print(f"Predictions: {predictions}")
 
@@ -215,15 +217,15 @@ if __name__ == '__main__':
             print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
             print(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n")
 
-            with open(f'checkpoints/chk_ep{ep}_fs{fontsize}.txt', 'a') as f:
+            with open(f'checkpoints/{clipname}/chk_ep{ep}_fs{fontsize}.txt', 'a') as f:
                 f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
                 f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n")
 
             model_weights = model.state_dict()
-            torch.save(model_weights, f'checkpoints/chk_ep{ep}.pth')
+            torch.save(model_weights, f'checkpoints/{clipname}/chk_ep{ep}.pth')
 
         train_loss = train(model)
         print(f"Epoch {ep} - Train loss: {train_loss:.2f}")
-        with open(f'checkpoints/chk_ep{ep}_fs{fontsize}.txt', 'a') as f:
+        with open(f'checkpoints/{clipname}/chk_ep{ep}_fs{fontsize}.txt', 'a') as f:
             f.write(f"Epoch {ep} - Train loss: {train_loss:.2f}\n")
         
