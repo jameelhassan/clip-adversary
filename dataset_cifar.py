@@ -17,10 +17,11 @@ class Cifar10_preprocess2(datasets.CIFAR10):
         img_ = img.copy()
         if self.transform_corr is not None:  # Not handling exceptions!
             img_transformed = self.transform_corr(img_)    # image transformed
+            text_class_idx = self.transform_corr.transforms[0].index    # Get index of text corruption class for sample
         if self.transform is not None:
             img = self.transform(img)
             # img = transforms.Resize((224, 224))(img) # image resized
             # img_tensor = transforms.ToTensor()(img)  # tensor image
         if self.target_transform is not None:
             target = self.target_transform(target)
-        return img_transformed, img, target
+        return img_transformed, img, text_class_idx, target

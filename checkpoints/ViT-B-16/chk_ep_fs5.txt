@@ -1,0 +1,1 @@
+Epoch 0 - Train loss: 747.02
