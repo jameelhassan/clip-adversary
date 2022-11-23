@@ -4,3 +4,5 @@ Class label 0: airplane corruption predictions - [ 938. 1286.  998. 1034.  994. 
 ----------------------------------------------------------------------------------------------------
 Epoch 0 - Top1: 89.13 Top5: 99.07
 Class label 0: airplane corruption predictions - [ 934. 1289. 1000. 1038.  998. 1088.  712. 1099.  990.  852.]
+Epoch 4 - Top1: 60.09 Top5: 86.87
+Class label 0: airplane corruption predictions - [3155.  616.  687.  709.  312. 1106.  109. 1423.  672. 1211.]

@@ -1,1 +1,5 @@
 Epoch 0 - Train loss: 747.02
+Epoch 1 - Train loss: 734.81
+Epoch 2 - Train loss: 727.91
+Epoch 3 - Train loss: 721.36
+Epoch 4 - Train loss: 716.05
