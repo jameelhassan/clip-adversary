@@ -33,9 +33,9 @@ class AddText(object):
 
     def __call__(self, sample):
         image = sample
-        self.index = np.random.choice(range(len(self.classes))) if self.random_choice else self.index
+        self.index = np.random.choice(range(MIN_CORR)) if self.random_choice else self.index
         text_class = self.classes[self.index]
-        img_tf = ImageDraw.Draw(image.convert("RGB"))
+        img_tf = ImageDraw.Draw(image) #.convert("RGB") for Caltech
         
         #Setting possible positions and colours of text and choosing one in random 
         text_locs = [(np.round(i * image.size[0]), np.round(j * image.size[1])) for (i,j) in [(0.25, 0.25), (0.25, 0.6), (0.75, 0.25), (0.6, 0.6)]]
@@ -110,9 +110,9 @@ def validate(model):
                 adversary = structured_noise + data     # Add original image to structured noise with input as original image
                 adversary = torch.min(torch.max(adversary, data - eps), data + eps)
                 # adversary = torch.clamp(adversary, 0.0, 1.0)
-                batch_images = make_grid(adversary, nrow=10, normalize=True)
-                if (batch_idx == 0):
-                    save_image(batch_images, f"./Adversary_images/{clipname}/{DATASET}/epoch{ep}_eps{str(eps)}.png", normalize=False)
+                # batch_images = make_grid(adversary, nrow=10, normalize=True)
+                # if (batch_idx == 0):
+                #     save_image(batch_images, f"./Adversary_images/{clipname}/{DATASET}/epoch{ep}_eps{str(eps)}.png", normalize=False)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in data_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -158,9 +158,9 @@ def zeroshot(model):
     with tqdm(zeroshot_loader, unit="batch") as tepoch:
         for batch_idx, (data, target) in enumerate(tepoch):
             data, target = data.to(device), target.to(device)
-            batch_images = make_grid(data, nrow=10, normalize=True)
-            if (batch_idx == 0):
-                save_image(batch_images, f"./original_img/{clipname}/{DATASET}/epoch{ep}.png", normalize=False)
+            # batch_images = make_grid(data, nrow=10, normalize=True)
+            # if (batch_idx == 0):
+            #     save_image(batch_images, f"./original_img/{clipname}/{DATASET}/epoch{ep}.png", normalize=False)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in data_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -189,7 +189,8 @@ def zeroshot(model):
 if __name__ == '__main__':
     ct = datetime.datetime.now()
     MODEL_TAG = 'ContLoss_eps01'
-    DATASET = 'Caltech101'
+    DATASET = 'CIFAR10'
+    MIN_CORR = 3
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     # clip_models = clip.available_models()[0:1] + clip.available_models()[6:7]
@@ -259,8 +260,8 @@ if __name__ == '__main__':
         os.makedirs(f"./Adversary_images/{clipname}/{DATASET}")
         os.makedirs(f"./original_img/{clipname}/{DATASET}")
 
-    if not os.path.exists(f'./checkpoints/{clipname}/{DATASET}'):
-        os.makedirs(f'./checkpoints/{clipname}/{DATASET}')
+    if not os.path.exists(f'./checkpoints/min_corr{MIN_CORR}_{clipname}/{DATASET}'):
+        os.makedirs(f'./checkpoints/min_corr{MIN_CORR}_{clipname}/{DATASET}')
 
     start = time()
     for ep in range(epochs):
@@ -276,23 +277,23 @@ if __name__ == '__main__':
         #         f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
         #         f.write(100*"-" + "\n")
 
-        # if ((ep + 1) % 5 == 0 or ep == 0):
-        #     top1, top5,attack_top1,attack_top5, predictions = validate(model)
-        #     print(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
-        #     print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-        #     print(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
+        if ((ep + 1) % 5 == 0 or ep == 0):
+            top1, top5,attack_top1,attack_top5, predictions = validate(model)
+            print(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
+            print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+            print(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
 
-        #     with open(f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
-        #         f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else f.write(f"Corruption predictions - {predictions}\n")
-        #         f.write(f"\nEpoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-        #         f.write(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
+            with open(f'checkpoints/min_corr{MIN_CORR}_{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+                f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else f.write(f"Corruption predictions - {predictions}\n")
+                f.write(f"\nEpoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+                f.write(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
 
-        #     model_weights = model.state_dict()
-        #     torch.save(model_weights, f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_ep{ep}.pth')
+            model_weights = model.state_dict()
+            torch.save(model_weights, f'checkpoints/min_corr{MIN_CORR}_{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_ep{ep}.pth')
 
         train_loss = train(model)
         print(f"Epoch {ep} - Train loss: {train_loss:.2f}")
-        with open(f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+        with open(f'checkpoints/min_corr{MIN_CORR}_{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
             f.write(f"Epoch {ep} - Train loss: {train_loss:.2f}\n")
         
     end = time()
