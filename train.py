@@ -263,17 +263,17 @@ if __name__ == '__main__':
 
     start = time()
     for ep in range(epochs):
-        # if ep == 0:
-        #     print(f"####### Zero Shot CLIP performance #########")
-        #     top1, top5, predictions = zeroshot(model)
-        #     # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
-        #     # print(f"Predictions: {predictions}")
+        if ep == 0:
+            print(f"####### Zero Shot CLIP performance #########")
+            top1, top5, predictions = zeroshot(model)
+            # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
+            # print(f"Predictions: {predictions}")
 
-        #     with open(f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
-        #         f.write(f"####### Zero Shot CLIP performance #########\n")
-        #         f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
-        #         f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-        #         f.write(100*"-" + "\n")
+            with open(f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+                f.write(f"####### Zero Shot CLIP performance #########\n")
+                f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
+                f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+                f.write(100*"-" + "\n")
 
         if ((ep + 1) % 5 == 0 or ep == 0):
             top1, top5,attack_top1,attack_top5, predictions = validate(model)
