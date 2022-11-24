@@ -207,7 +207,7 @@ if __name__ == '__main__':
     criterion = ContrastiveLoss()
     criterion_noise = ContrastiveLoss_with_noise()
     optimizer = torch.optim.AdamW(list(model.parameters()), lr=learning_rate)
-    batch_size = 24
+    batch_size = 12
     epochs = 20
     noise_only_attract = False # used to control adversary noise only attracted to coruppted text feature
     print("Loaded generator model")
@@ -264,31 +264,31 @@ if __name__ == '__main__':
 
     start = time()
     for ep in range(epochs):
-        if ep == 0:
-            print(f"####### Zero Shot CLIP performance #######")
-            top1, top5, predictions = zeroshot(model)
-            print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
-            # print(f"Predictions: {predictions}")
+        # if ep == 0:
+        #     print(f"####### Zero Shot CLIP performance #######")
+        #     top1, top5, predictions = zeroshot(model)
+        #     print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
+        #     # print(f"Predictions: {predictions}")
 
-            with open(f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
-                f.write(f"####### Zero Shot CLIP performance #########\n")
-                f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
-                f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-                f.write(100*"-" + "\n")
+        #     with open(f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+        #         f.write(f"####### Zero Shot CLIP performance #########\n")
+        #         f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
+        #         f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+        #         f.write(100*"-" + "\n")
 
-        if ((ep + 1) % 5 == 0 or ep == 0):
-            top1, top5,attack_top1,attack_top5, predictions = validate(model)
-            print(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
-            print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-            print(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
+        # if ((ep + 1) % 5 == 0 or ep == 0):
+        #     top1, top5,attack_top1,attack_top5, predictions = validate(model)
+        #     print(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
+        #     print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+        #     print(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
 
-            with open(f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
-                f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else f.write(f"Corruption predictions - {predictions}\n")
-                f.write(f"\nEpoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-                f.write(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
+        #     with open(f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+        #         f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else f.write(f"Corruption predictions - {predictions}\n")
+        #         f.write(f"\nEpoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+        #         f.write(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
 
-            model_weights = model.state_dict()
-            torch.save(model_weights, f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_ep{ep}.pth')
+        #     model_weights = model.state_dict()
+        #     torch.save(model_weights, f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_ep{ep}.pth')
 
         train_loss = train(model)
         print(f"Epoch {ep} - Train loss: {train_loss:.2f}")
