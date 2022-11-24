@@ -198,7 +198,7 @@ if __name__ == '__main__':
     featurizer = featurizer.float().to(device)
     print("Loaded clip model")
     fontsize = 5
-    idx = None # Index of class to be added as text else random
+    idx = None # Index of class to be added as text
     eps = 0.1 # Epsilon for projection
     learning_rate = 1e-4
 
