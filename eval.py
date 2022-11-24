@@ -10,6 +10,8 @@ from torch.utils.data import DataLoader, Dataset
 import json
 from PIL import Image, ImageFont, ImageDraw
 import random
+from torchvision.utils import save_image
+from torchvision.utils import make_grid
 
 
 def accuracy(output, target, topk=(1,)):
@@ -29,6 +31,9 @@ def evaluate(loader):
         for i, (images, target) in enumerate(tqdm(loader, unit='batch')):
             images = images.cuda()
             target = target.cuda()
+            batch_images = make_grid(images, nrow=10, normalize=True)
+            
+            save_image(batch_images, f"./original_img/check.png", normalize=False)
 
             #prediction
             image_features = model.encode_image(images).float()

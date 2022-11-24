@@ -241,17 +241,18 @@ if __name__ == '__main__':
         zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_set, batch_size=batch_size, shuffle=False, num_workers=2)
 
     elif DATASET == 'Caltech101':
-        data_classes = os.listdir('./data/caltech-101/101_ObjectCategories')
+        zeroshot_caltech_set = torchvision.datasets.ImageFolder(root='./data/caltech-101/101_ObjectCategories', transform=preprocess)
+        zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_caltech_set, batch_size=batch_size, shuffle=False, num_workers=2)
+        data_classes = zeroshot_caltech_set.classes
         print(data_classes)
         preprocess_corrupt = transforms.Compose([AddText(data_classes, fontsize=fontsize, index=idx), preprocess])
 
         caltech_dataset = MyCaltech101(root='./data/caltech-101/101_ObjectCategories', transform_corr=preprocess_corrupt, transform=preprocess)
         caltech_train, caltech_test = torch.utils.data.random_split(caltech_dataset, lengths=[round(0.8*len(caltech_dataset)), round(0.2*len(caltech_dataset))])
-
-        zeroshot_caltech_set = torchvision.datasets.ImageFolder(root='./data/caltech-101/101_ObjectCategories', transform=preprocess)
-        zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_caltech_set, batch_size=batch_size, shuffle=False, num_workers=2)
+        
         train_loader = torch.utils.data.DataLoader(caltech_train, batch_size=batch_size, shuffle=True, num_workers=2)
         test_loader = torch.utils.data.DataLoader(caltech_test, batch_size=batch_size, shuffle=False, num_workers=2)
+        
 
     clipname = clipname.replace('/', '-')
     if not os.path.exists(f"./Adversary_images/{clipname}/{DATASET}"):
@@ -264,9 +265,9 @@ if __name__ == '__main__':
     start = time()
     for ep in range(epochs):
         if ep == 0:
-            print(f"####### Zero Shot CLIP performance #########")
+            print(f"####### Zero Shot CLIP performance #######")
             top1, top5, predictions = zeroshot(model)
-            # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
+            print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
             # print(f"Predictions: {predictions}")
 
             with open(f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
