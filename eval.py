@@ -10,6 +10,8 @@ from torch.utils.data import DataLoader, Dataset
 import json
 from PIL import Image, ImageFont, ImageDraw
 import random
+from torchvision.utils import save_image
+from torchvision.utils import make_grid
 
 
 def accuracy(output, target, topk=(1,)):
@@ -23,12 +25,15 @@ def evaluate(loader):
         top1 = 0.
         top5 = 0.
         n = 0.
-        predictions = np.zeros((10,))
+        predictions = np.zeros(len(classes))
         
         # with tqdm(testloader, unit="batch") as tepoch:
         for i, (images, target) in enumerate(tqdm(loader, unit='batch')):
             images = images.cuda()
             target = target.cuda()
+            batch_images = make_grid(images, nrow=10, normalize=True)
+            
+            save_image(batch_images, f"./original_img/check.png", normalize=False)
 
             #prediction
             image_features = model.encode_image(images).float()
@@ -102,8 +107,6 @@ class AddText(object):
         return image
 
 
-
-caltech_dataset = torchvision.datasets.Caltech101(root='./data/caltech101', download=True, transform=preprocess)
 TEXT_CORRUPT = False
 fontsize = 5
 clip_models = clip.available_models()[0:1] + clip.available_models()[6:7]
@@ -125,17 +128,15 @@ for clipx in clip_models:
     print("Context length:", context_length)
     print("Vocab size:", vocab_size)
     for dataset in datasets:
-        for idx in range(10):
-            batch_size = 5
+        for idx in range(1):
+            batch_size = 16
             if dataset == 'cifar10':
                 cifar_classes = get_cifar10_classes('./data/cifar10/batches.meta')
                 print(cifar_classes)
                 if TEXT_CORRUPT:
                     preprocess = transforms.Compose([AddText(cifar_classes, fontsize=fontsize, index=idx), preprocess])
                     ### DO transform in evaluate function
-                # trainset = torchvision.datasets.CIFAR10(root='/home/jameel.hassan/Documents/AI701/data/cifar10', train=True, download=False, transform=preprocess)
-                # trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-
+                
                 testset = torchvision.datasets.CIFAR10(root='./data/cifar10', train=False, download=False, transform=preprocess)
                 testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
             elif dataset == 'cifar100':
@@ -143,21 +144,19 @@ for clipx in clip_models:
                 print(len(cifar_classes))
                 if TEXT_CORRUPT:
                     preprocess = transforms.Compose([AddText(cifar_classes, fontsize=fontsize), preprocess])
-                # trainset = torchvision.datasets.CIFAR100(root='/home/jameel.hassan/Documents/AI701/data/cifar100', train=True, download=False, transform=preprocess)
-                # trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-
+                
                 testset = torchvision.datasets.CIFAR100(root='./data/cifar100', train=False, download=False, transform=preprocess)
                 testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
             elif dataset == 'caltech101':
+                # data_classes = os.listdir('./data/caltech-101/101_ObjectCategories')
+                # print(data_classes)
                 if TEXT_CORRUPT:
                     preprocess = transforms.Compose([AddText(cifar_classes, fontsize=fontsize), preprocess])
-                # caltech_dataset = torchvision.datasets.Caltech101(root='./data/caltech101', download=True, transform=preprocess)
-                # trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
 
-                # testset = torchvision.datasets.Caltech101(root='./data/caltech101', download=False, transform=preprocess)
-                # testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
+                testset = torchvision.datasets.ImageFolder(root='./data/caltech-101/101_ObjectCategories', transform=preprocess)
+                testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
             else:
-                print("Dataset other than CIFAR requested.")
+                print("Dataset other than avaialable requested.")
 
             print(f"Evaluating {dataset} for corrupt with class {idx}") if TEXT_CORRUPT else None
             classes = testset.classes
@@ -173,8 +172,8 @@ for clipx in clip_models:
             print(f"Top1 Accuracy: {top1:.2f}\nTop5 Accuracy: {top5:.2f}")
             accuracies[dataset] = {'Top1': top1, 'Top5': top5}
 
-            with open(f'results/textcorrupt_t{fontsize}.txt', 'a') as f:
-                f.write(f"Class {idx+1}: {cifar_classes[idx]}:" + str(predictions) + '\n')
+            # with open(f'results/{dataset}_textcorrupt_t{fontsize}.txt', 'a') as f:
+            #     f.write(f"Class {idx+1}: {classes[idx]}:" + str(predictions) + '\n')
 
     # savepath = f"./results/experiment_t{fontsize}/" if TEXT_CORRUPT else "./results/zeroshot/"
     # if not os.path.exists(savepath):

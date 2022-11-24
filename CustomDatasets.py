@@ -1,8 +1,10 @@
+import torchvision
 from torchvision import datasets
 from torchvision import transforms
 import torch
 from PIL import Image
 import numpy as np
+
 
 class Cifar10_preprocess2(datasets.CIFAR10):
     def __init__(self, root, train=True, transform_corr=None, transform=None, target_transform=None, download=False, index=0):
@@ -50,16 +52,16 @@ class Cifar100_preprocess2(datasets.CIFAR100):
         return img_transformed, img, text_class_idx, target
 
 
-class Caltech101_preprocess2(datasets.Caltech101):
-    def __init__(self, root, train=True, transform_corr=None, transform=None, target_transform=None, download=False, index=0):
-        super().__init__(root, train, transform, target_transform, download)
+class MyCaltech101(torchvision.datasets.ImageFolder):
+    def __init__(self, root, transform_corr=None, transform=None, target_transform=None, index=0):
+        super().__init__(root, transform, target_transform)
         self.index = index
         self.transform_corr = transform_corr
         self.transform = transform
 
     def __getitem__(self, index):
-        img, target = self.data[index], self.targets[index]
-        img = Image.fromarray(img)
+        img, target = self.samples[index]
+        img = Image.open(img)
         img_ = img.copy()
         if self.transform_corr is not None:  # Not handling exceptions!
             img_transformed = self.transform_corr(img_)    # image transformed
