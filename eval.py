@@ -102,8 +102,6 @@ class AddText(object):
         return image
 
 
-
-caltech_dataset = torchvision.datasets.Caltech101(root='./data/caltech101', download=True, transform=preprocess)
 TEXT_CORRUPT = False
 fontsize = 5
 clip_models = clip.available_models()[0:1] + clip.available_models()[6:7]

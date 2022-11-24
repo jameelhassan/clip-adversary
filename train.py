@@ -16,7 +16,7 @@ from losses import *
 from utils import *
 from torchvision.utils import save_image
 from torchvision.utils import make_grid
-from CustomDatasets import Cifar10_preprocess2, Cifar100_preprocess2, Caltech101_preprocess2
+from CustomDatasets import Cifar10_preprocess2, Cifar100_preprocess2, MyCaltech101
 from time import time
 import datetime
 
@@ -35,7 +35,7 @@ class AddText(object):
         image = sample
         self.index = np.random.choice(range(len(self.classes))) if self.random_choice else self.index
         text_class = self.classes[self.index]
-        img_tf = ImageDraw.Draw(image)
+        img_tf = ImageDraw.Draw(image.convert("RGB"))
         
         #Setting possible positions and colours of text and choosing one in random 
         text_locs = [(np.round(i * image.size[0]), np.round(j * image.size[1])) for (i,j) in [(0.25, 0.25), (0.25, 0.6), (0.75, 0.25), (0.6, 0.6)]]
@@ -61,7 +61,7 @@ def train(model):
             target = target[different_text_ids]
             text_corr_idx = text_corr_idx[different_text_ids]
             
-            text_corrupt = clip.tokenize([f"This is a photo of a {cifar_classes[corrupt_idx]}" for corrupt_idx in text_corr_idx]).to(device)
+            text_corrupt = clip.tokenize([f"This is a photo of a {data_classes[corrupt_idx]}" for corrupt_idx in text_corr_idx]).to(device)
             structured_noise = model(img_corr)      # Structured noise from generator with input as corrupted image
             adversary = structured_noise + data     # Add original image to structured noise with input as original image
 
@@ -93,7 +93,7 @@ def train(model):
 
 def validate(model):   
     model.eval()
-    predictions = np.zeros(10,)
+    predictions = np.zeros(len(data_classes))
     top1 = 0.
     top5 = 0.
     attack_top1 = 0.
@@ -114,7 +114,7 @@ def validate(model):
                 if (batch_idx == 0):
                     save_image(batch_images, f"./Adversary_images/{clipname}/{DATASET}/epoch{ep}_eps{str(eps)}.png", normalize=False)
 
-            text_descriptions = [f"This is a photo of a {cl}" for cl in cifar_classes]
+            text_descriptions = [f"This is a photo of a {cl}" for cl in data_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
             with torch.no_grad():
                 text_features = featurizer.encode_text(text_tokens)
@@ -150,7 +150,7 @@ def zeroshot(model):
     Zero-shot classification using CLIP
     """
     model.eval()
-    predictions = np.zeros(10,)
+    predictions = np.zeros(len(data_classes),)
     top1 = 0.
     top5 = 0.
     n = 0.
@@ -162,7 +162,7 @@ def zeroshot(model):
             if (batch_idx == 0):
                 save_image(batch_images, f"./original_img/{clipname}/{DATASET}/epoch{ep}.png", normalize=False)
 
-            text_descriptions = [f"This is a photo of a {cl}" for cl in cifar_classes]
+            text_descriptions = [f"This is a photo of a {cl}" for cl in data_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
             with torch.no_grad():
                 text_features = featurizer.encode_text(text_tokens)
@@ -189,7 +189,7 @@ def zeroshot(model):
 if __name__ == '__main__':
     ct = datetime.datetime.now()
     MODEL_TAG = 'ContLoss_eps01'
-    DATASET = 'CIFAR100'
+    DATASET = 'Caltech101'
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     # clip_models = clip.available_models()[0:1] + clip.available_models()[6:7]
@@ -213,9 +213,9 @@ if __name__ == '__main__':
     print("Loaded generator model")
 
     if DATASET == 'CIFAR10':
-        cifar_classes = get_cifar10_classes('./data/cifar10/batches.meta')
-        print(cifar_classes)
-        preprocess_corrupt = transforms.Compose([AddText(cifar_classes, fontsize=fontsize, index=idx), preprocess])
+        data_classes = get_cifar10_classes('./data/cifar10/batches.meta')
+        print(data_classes)
+        preprocess_corrupt = transforms.Compose([AddText(data_classes, fontsize=fontsize, index=idx), preprocess])
 
         trainset = Cifar10_preprocess2(root='./data/cifar10', train=True, download=False, transform_corr=preprocess_corrupt, transform=preprocess)
         train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
@@ -227,9 +227,9 @@ if __name__ == '__main__':
         zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_set, batch_size=batch_size, shuffle=False, num_workers=2)
 
     elif DATASET == 'CIFAR100':
-        cifar_classes = get_cifar100_classes('./data/cifar100/meta')
-        print(cifar_classes)
-        preprocess_corrupt = transforms.Compose([AddText(cifar_classes, fontsize=fontsize, index=idx), preprocess])
+        data_classes = get_cifar100_classes('./data/cifar100/meta')
+        print(data_classes)
+        preprocess_corrupt = transforms.Compose([AddText(data_classes, fontsize=fontsize, index=idx), preprocess])
 
         trainset = Cifar100_preprocess2(root='./data/cifar100', train=True, download=True, transform_corr=preprocess_corrupt, transform=preprocess)
         train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
@@ -239,6 +239,19 @@ if __name__ == '__main__':
 
         zeroshot_set = torchvision.datasets.CIFAR100(root='./data/cifar100', train=False, download=False, transform=preprocess)
         zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_set, batch_size=batch_size, shuffle=False, num_workers=2)
+
+    elif DATASET == 'Caltech101':
+        data_classes = os.listdir('./data/caltech-101/101_ObjectCategories')
+        print(data_classes)
+        preprocess_corrupt = transforms.Compose([AddText(data_classes, fontsize=fontsize, index=idx), preprocess])
+
+        caltech_dataset = MyCaltech101(root='./data/caltech-101/101_ObjectCategories', transform_corr=preprocess_corrupt, transform=preprocess)
+        caltech_train, caltech_test = torch.utils.data.random_split(caltech_dataset, lengths=[round(0.8*len(caltech_dataset)), round(0.2*len(caltech_dataset))])
+
+        zeroshot_caltech_set = torchvision.datasets.ImageFolder(root='./data/caltech-101/101_ObjectCategories', transform=preprocess)
+        zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_caltech_set, batch_size=batch_size, shuffle=False, num_workers=2)
+        train_loader = torch.utils.data.DataLoader(caltech_train, batch_size=batch_size, shuffle=True, num_workers=2)
+        test_loader = torch.utils.data.DataLoader(caltech_test, batch_size=batch_size, shuffle=False, num_workers=2)
 
     clipname = clipname.replace('/', '-')
     if not os.path.exists(f"./Adversary_images/{clipname}/{DATASET}"):
@@ -250,26 +263,26 @@ if __name__ == '__main__':
 
     start = time()
     for ep in range(epochs):
-        if ep == 0:
-            print(f"####### Zero Shot CLIP performance #########")
-            top1, top5, predictions = zeroshot(model)
-            # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
-            # print(f"Predictions: {predictions}")
+        # if ep == 0:
+        #     print(f"####### Zero Shot CLIP performance #########")
+        #     top1, top5, predictions = zeroshot(model)
+        #     # print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
+        #     # print(f"Predictions: {predictions}")
 
-            with open(f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
-                f.write(f"####### Zero Shot CLIP performance #########\n")
-                f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
-                f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-                f.write(100*"-" + "\n")
+        #     with open(f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+        #         f.write(f"####### Zero Shot CLIP performance #########\n")
+        #         f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
+        #         f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+        #         f.write(100*"-" + "\n")
 
         if ((ep + 1) % 5 == 0 or ep == 0):
             top1, top5,attack_top1,attack_top5, predictions = validate(model)
-            print(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
+            print(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
             print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
             print(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
 
             with open(f'checkpoints/{clipname}/{DATASET}/{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
-                f.write(f"Class label {idx}: {cifar_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else f.write(f"Corruption predictions - {predictions}\n")
+                f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else f.write(f"Corruption predictions - {predictions}\n")
                 f.write(f"\nEpoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
                 f.write(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
 
