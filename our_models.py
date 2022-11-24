@@ -203,9 +203,113 @@ class GeneratorResnet(nn.Module):
         x = self.resblock3(x)
         x = self.resblock4(x)
         x = self.resblock5(x)
-        x = self.resblock6(x)
-        x = self.upsampl1(x)
-        x = self.upsampl2(x)
+        x = self.resblock6(x) #B,256,56,56
+        x = self.upsampl1(x) #B,128,112,112
+        x = self.upsampl2(x) #B,64,224,224
+        x = self.blockf(x) #B,3,224,224
+        if self.inception:
+            x = self.crop(x)
+        return (torch.tanh(x) + 1) / 2 # Output range [0 1]
+
+
+class GeneratorResnet_CLIP(nn.Module):
+    def __init__(self, inception = False):
+        '''
+        :param inception: if True crop layer will be added to go from 3x300x300 t0 3x299x299.
+        '''
+        super(GeneratorResnet_CLIP, self).__init__()
+        # Input_size = 3, n, n
+
+        self.inception = inception
+        clipname = 'RN50'
+        self.encoder,_= clip.load(clipname)
+        self.encoder=self.encoder.float()
+        # self.encoder.visual.layer2=nn.Identity()
+        # self.encoder.visual.layer3=nn.Identity()
+        # self.encoder.visual.layer4=nn.Identity()
+        self.encoder.visual.attnpool=nn.Identity()
+
+
+        self.block1 = nn.Sequential(
+            nn.ReflectionPad2d(3),
+            nn.Conv2d(3, ngf, kernel_size=7, padding=0, bias=False),
+            nn.BatchNorm2d(ngf),
+            FusedLeakyReLU(ngf)
+        )
+
+        # Input size = 3, n, n
+        self.block2 = nn.Sequential(
+            nn.Conv2d(ngf, ngf * 2, kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(ngf * 2),
+            FusedLeakyReLU(ngf * 2)
+        )
+
+        # Input size = 3, n/2, n/2
+        self.block3 = nn.Sequential(
+            nn.Conv2d(ngf * 2, ngf * 4, kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(ngf * 4),
+            FusedLeakyReLU(ngf * 4)
+        )
+
+        # Input size = 3, n/4, n/4
+        # Residual Blocks: 6
+        # self.resblock1 = ResidualBlock(ngf * 4)
+        # self.resblock2 = ResidualBlock(ngf * 4)
+        # self.resblock3 = ResidualBlock(ngf * 4)
+        # self.resblock4 = ResidualBlock(ngf * 4)
+        # self.resblock5 = ResidualBlock(ngf * 4)
+        # self.resblock6 = ResidualBlock(ngf * 4)
+
+        self.upsampl0 = nn.Sequential(
+            nn.ConvTranspose2d(ngf * 32, ngf * 16, kernel_size=3, stride=2, padding=1, output_padding=1, bias=False),
+            nn.BatchNorm2d(ngf * 16),
+            FusedLeakyReLU(ngf * 16)
+        )
+        
+        self.upsampl1 = nn.Sequential(
+            nn.ConvTranspose2d(ngf * 16, ngf * 8, kernel_size=3, stride=2, padding=1, output_padding=1, bias=False),
+            nn.BatchNorm2d(ngf * 8),
+            FusedLeakyReLU(ngf * 8)
+        )
+
+        self.upsampl2 = nn.Sequential(
+            nn.ConvTranspose2d(ngf * 8, ngf * 4, kernel_size=3, stride=2, padding=1, output_padding=1, bias=False),
+            nn.BatchNorm2d(ngf * 4),
+            FusedLeakyReLU(ngf * 4)
+        )
+
+
+        # Input size = 3, n/4, n/4
+        self.upsampl3 = nn.Sequential(
+            nn.ConvTranspose2d(ngf * 4, ngf * 2, kernel_size=3, stride=2, padding=1, output_padding=1, bias=False),
+            nn.BatchNorm2d(ngf * 2),
+            FusedLeakyReLU(ngf * 2)
+        )
+        
+
+        # Input size = 3, n/2, n/2
+        self.upsampl4 = nn.Sequential(
+            nn.ConvTranspose2d(ngf * 2, ngf, kernel_size=3, stride=2, padding=1, output_padding=1, bias=False),
+            nn.BatchNorm2d(ngf),
+            FusedLeakyReLU(ngf)
+        )
+        
+        # Input size = 3, n, n
+        self.blockf = nn.Sequential(
+            nn.ReflectionPad2d(3),
+            nn.Conv2d(ngf, 3, kernel_size=7, padding=0)
+        )
+
+        self.crop = nn.ConstantPad2d((0, -1, -1, 0), 0)
+
+    def forward(self, input):
+        x=self.encoder.encode_image(input)  
+
+        x = self.upsampl0(x)  
+        x = self.upsampl1(x) 
+        x = self.upsampl2(x) 
+        x = self.upsampl3(x) 
+        x = self.upsampl4(x) 
         x = self.blockf(x)
         if self.inception:
             x = self.crop(x)
