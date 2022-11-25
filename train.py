@@ -61,22 +61,24 @@ def train(model):
             target = target[different_text_ids]
             text_corr_idx = text_corr_idx[different_text_ids]
             
-            text_corrupt = clip.tokenize([f"This is a photo of a {data_classes[corrupt_idx]}" for corrupt_idx in text_corr_idx]).to(device)
-            structured_noise = model(img_corr)      # Structured noise from generator with input as corrupted image
+            context_descriptions = [f"This is a photo of a {data_classes[text_id]}" for text_id in text_corr_idx]
+            context_tokens = clip.tokenize(context_descriptions).cuda()  # Context tokens for generator
+            t = torch.randint(0, 1, (data.shape[0],), device=device).long()  # Time steps for the generator HOW TO REMOVE??
+            structured_noise = model(data, t, context=context_tokens)      # Structured noise from generator with input as corrupted image
             adversary = structured_noise + data     # Add original image to structured noise with input as original image
 
             # projection
             adversary = torch.min(torch.max(adversary, data - eps), data + eps)
             # adversary = torch.clamp(adversary, 0.0, 1.0)
-            structured_noise = adversary-data  # obtaining the actual noise added
 
             z = featurizer.encode_image(data)
 
             if (noise_only_attract):
+                structured_noise = adversary-data  # obtaining the actual noise added
                 n_hat = featurizer.encode_image(structured_noise)
 
             z_hat = featurizer.encode_image(adversary)
-            t_neg = featurizer.encode_text(text_corrupt)
+            t_neg = featurizer.encode_text(context_tokens)
             # t_neg = t_neg.expand #if needed
             # loss = F.mse_loss(z_hat, t_neg) #MSE loss on the corrupted image and text embeddings
 
@@ -105,8 +107,11 @@ def validate(model):
             img_corr, data, target, text_corr_idx = img_corr.to(device), data.to(device), target.to(device), text_corr_idx.to(device)
             optimizer.zero_grad()
             
+            context_descriptions = [f"This is a photo of a {data_classes[text_id]}" for text_id in text_corr_idx]
+            context_tokens = clip.tokenize(context_descriptions).cuda()  # Context tokens for generator
+            t = torch.randint(0, 1, (data.shape[0],), device=device).long()  # Time steps for the generator HOW TO REMOVE??
             with torch.no_grad():
-                structured_noise = model(img_corr)      # Structured noise from generator with input as corrupted image
+                structured_noise = model(data, t, context=context_tokens)      # Structured noise from generator with input as corrupted image
                 adversary = structured_noise + data     # Add original image to structured noise with input as original image
                 adversary = torch.min(torch.max(adversary, data - eps), data + eps)
                 # adversary = torch.clamp(adversary, 0.0, 1.0)
@@ -188,14 +193,14 @@ def zeroshot(model):
 
 if __name__ == '__main__':
     ct = datetime.datetime.now()
-    MODEL_TAG = 'encCLIPfreeze_eps01'
+    MODEL_TAG = 'StableDiff_UNet'
     DATASET = 'CIFAR10'
     MIN_CORR = 5
     COSINE = True
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     # clip_models = clip.available_models()[0:1] + clip.available_models()[6:7]
-    clipname = 'ViT-B/16'
+    clipname = 'RN50'
     featurizer, preprocess = clip.load(clipname)
     featurizer = featurizer.float().to(device)
     print("Loaded clip model")
@@ -204,16 +209,14 @@ if __name__ == '__main__':
     eps = 0.1 # Epsilon for projection
     learning_rate = 1e-3
 
-    model = GeneratorResnet_CLIP()
+    model = UNetModel(image_size=32, in_channels=3, out_channels=3, model_channels=128, attention_resolutions=[4, 2], num_res_blocks=2, num_heads=2)
     model.to(device)
-    ## Freeze CLIP encoder
-    for param in model.encoder.parameters():
-        param.requires_grad = False
+    print("Loaded Stable Diffusion UNet model :O :O :O")
     criterion = ContrastiveCosine() if COSINE else ContrastiveLoss()
     criterion_noise = ContrastiveLoss_with_noise()
     optimizer = torch.optim.AdamW(list(model.parameters()), lr=learning_rate)
-    batch_size = 12
-    epochs = 20
+    batch_size = 4
+    epochs = 10
     noise_only_attract = False # used to control adversary noise only attracted to coruppted text feature
     print("Loaded generator model")
 
