@@ -215,7 +215,7 @@ if __name__ == '__main__':
     criterion = ContrastiveCosine() if COSINE else ContrastiveLoss()
     criterion_noise = ContrastiveLoss_with_noise()
     optimizer = torch.optim.AdamW(list(model.parameters()), lr=learning_rate)
-    batch_size = 4
+    batch_size = 6
     epochs = 10
     noise_only_attract = False # used to control adversary noise only attracted to coruppted text feature
     print("Loaded generator model")
