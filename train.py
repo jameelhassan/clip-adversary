@@ -188,9 +188,9 @@ def zeroshot(model):
 
 if __name__ == '__main__':
     ct = datetime.datetime.now()
-    MODEL_TAG = 'CLIPenc_ContLoss_eps01'
+    MODEL_TAG = 'encCLIPfreeze_eps01'
     DATASET = 'CIFAR10'
-    MIN_CORR = 3
+    MIN_CORR = 5
     COSINE = True
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -202,13 +202,13 @@ if __name__ == '__main__':
     fontsize = 5
     idx = None # Index of class to be added as text
     eps = 0.1 # Epsilon for projection
-    learning_rate = 1e-5
+    learning_rate = 1e-3
 
     model = GeneratorResnet_CLIP()
     model.to(device)
-    # Freeze CLIP encoder
-    # for param in model.encoder.parameters():
-    #     param.requires_grad = False
+    ## Freeze CLIP encoder
+    for param in model.encoder.parameters():
+        param.requires_grad = False
     criterion = ContrastiveCosine() if COSINE else ContrastiveLoss()
     criterion_noise = ContrastiveLoss_with_noise()
     optimizer = torch.optim.AdamW(list(model.parameters()), lr=learning_rate)
@@ -275,7 +275,7 @@ if __name__ == '__main__':
         #     print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
         #     # print(f"Predictions: {predictions}")
 
-        #     with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_{learning_rate}_cosine{COSINE}_{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+        #     with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_{learning_rate}_cosine{COSINE}_{MODEL_TAG}_{ct}.txt', 'a') as f:
         #         f.write(f"####### Zero Shot CLIP performance #########\n")
         #         f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
         #         f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
@@ -287,7 +287,7 @@ if __name__ == '__main__':
             print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
             print(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
 
-            with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_{learning_rate}_cosine{COSINE}_{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+            with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_{learning_rate}_cosine{COSINE}_{MODEL_TAG}_{ct}.txt', 'a') as f:
                 f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else f.write(f"Corruption predictions - {predictions}\n")
                 f.write(f"\nEpoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
                 f.write(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
@@ -297,7 +297,7 @@ if __name__ == '__main__':
 
         train_loss = train(model)
         print(f"Epoch {ep} - Train loss: {train_loss:.2f}")
-        with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_{learning_rate}_cosine{COSINE}_{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+        with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_{learning_rate}_cosine{COSINE}_{MODEL_TAG}_{ct}.txt', 'a') as f:
             f.write(f"Epoch {ep} - Train loss: {train_loss:.2f}\n")
         
     end = time()
