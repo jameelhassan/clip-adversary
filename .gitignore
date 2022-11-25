@@ -2,3 +2,4 @@ data/*
 cluster_out/*
 checkpoints/*
 cluster_out/*
+results/*
