@@ -275,7 +275,7 @@ if __name__ == '__main__':
         #     print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
         #     # print(f"Predictions: {predictions}")
 
-        #     with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_cosine{COSINE}_{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+        #     with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_{learning_rate}_cosine{COSINE}_{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
         #         f.write(f"####### Zero Shot CLIP performance #########\n")
         #         f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
         #         f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
@@ -287,17 +287,17 @@ if __name__ == '__main__':
             print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
             print(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
 
-            with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_cosine{COSINE}_{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+            with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_{learning_rate}_cosine{COSINE}_{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
                 f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else f.write(f"Corruption predictions - {predictions}\n")
                 f.write(f"\nEpoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
                 f.write(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
 
             model_weights = model.state_dict()
-            torch.save(model_weights, f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_cosine{COSINE}_{MODEL_TAG}_{ct}_chk_ep{ep}.pth')
+            torch.save(model_weights, f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_{learning_rate}_cosine{COSINE}_{MODEL_TAG}_{ct}_chk_ep{ep}.pth')
 
         train_loss = train(model)
         print(f"Epoch {ep} - Train loss: {train_loss:.2f}")
-        with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_cosine{COSINE}_{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+        with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_{learning_rate}_cosine{COSINE}_{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
             f.write(f"Epoch {ep} - Train loss: {train_loss:.2f}\n")
         
     end = time()
