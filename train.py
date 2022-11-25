@@ -188,7 +188,7 @@ def zeroshot(model):
 
 if __name__ == '__main__':
     ct = datetime.datetime.now()
-    MODEL_TAG = 'ContLoss_eps01'
+    MODEL_TAG = 'CLIPenc_ContLoss_eps01'
     DATASET = 'CIFAR10'
     MIN_CORR = 3
     COSINE = True
@@ -202,10 +202,13 @@ if __name__ == '__main__':
     fontsize = 5
     idx = None # Index of class to be added as text
     eps = 0.1 # Epsilon for projection
-    learning_rate = 1e-4
+    learning_rate = 1e-5
 
-    model = GeneratorResnet().to(device)
+    model = GeneratorResnet_CLIP()
     model.to(device)
+    # Freeze CLIP encoder
+    # for param in model.encoder.parameters():
+    #     param.requires_grad = False
     criterion = ContrastiveCosine() if COSINE else ContrastiveLoss()
     criterion_noise = ContrastiveLoss_with_noise()
     optimizer = torch.optim.AdamW(list(model.parameters()), lr=learning_rate)
@@ -278,19 +281,19 @@ if __name__ == '__main__':
         #         f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
         #         f.write(100*"-" + "\n")
 
-        # if ((ep + 1) % 5 == 0 or ep == 0):
-        #     top1, top5,attack_top1,attack_top5, predictions = validate(model)
-        #     print(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
-        #     print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-        #     print(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
+        if ((ep + 1) % 5 == 0 or ep == 0):
+            top1, top5,attack_top1,attack_top5, predictions = validate(model)
+            print(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
+            print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+            print(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
 
-        #     with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_cosine{COSINE}_{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
-        #         f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else f.write(f"Corruption predictions - {predictions}\n")
-        #         f.write(f"\nEpoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-        #         f.write(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
+            with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_cosine{COSINE}_{MODEL_TAG}_{ct}_chk_fs{fontsize}.txt', 'a') as f:
+                f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else f.write(f"Corruption predictions - {predictions}\n")
+                f.write(f"\nEpoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+                f.write(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")
 
-        #     model_weights = model.state_dict()
-        #     torch.save(model_weights, f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_cosine{COSINE}_{MODEL_TAG}_{ct}_chk_ep{ep}.pth')
+            model_weights = model.state_dict()
+            torch.save(model_weights, f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_cosine{COSINE}_{MODEL_TAG}_{ct}_chk_ep{ep}.pth')
 
         train_loss = train(model)
         print(f"Epoch {ep} - Train loss: {train_loss:.2f}")

@@ -226,8 +226,8 @@ class GeneratorResnet_CLIP(nn.Module):
 
         self.inception = inception
         clipname = 'RN50'
-        self.encoder,_= clip.load(clipname)
-        self.encoder=self.encoder.float()
+        self.encoder, _ = clip.load(clipname)
+        self.encoder = self.encoder.float()
         # self.encoder.visual.layer2=nn.Identity()
         # self.encoder.visual.layer3=nn.Identity()
         # self.encoder.visual.layer4=nn.Identity()
@@ -469,6 +469,18 @@ class CheckpointFunction(torch.autograd.Function):
         return (None, None) + input_grads
 
 
+class TimestepBlock(nn.Module):
+    """
+    Any module where forward() takes timestep embeddings as a second argument.
+    """
+
+    @abstractmethod
+    def forward(self, x, emb):
+        """
+        Apply the module to `x` given `emb` timestep embeddings.
+        """
+
+
 class TimestepEmbedSequential(nn.Sequential, TimestepBlock):
     """
     A sequential module that passes timestep embeddings to the children that
@@ -484,18 +496,6 @@ class TimestepEmbedSequential(nn.Sequential, TimestepBlock):
             else:
                 x = layer(x)
         return x
-
-
-class TimestepBlock(nn.Module):
-    """
-    Any module where forward() takes timestep embeddings as a second argument.
-    """
-
-    @abstractmethod
-    def forward(self, x, emb):
-        """
-        Apply the module to `x` given `emb` timestep embeddings.
-        """
 
 
 # PyTorch 1.7 has SiLU, but we support PyTorch 1.5.
