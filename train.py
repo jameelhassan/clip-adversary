@@ -33,9 +33,9 @@ class AddText(object):
 
     def __call__(self, sample):
         image = sample
-        self.index = np.random.choice(range(MIN_CORR)) if self.random_choice else self.index
+        self.index = np.random.choice(range(len(data_classes))) if self.random_choice else self.index
         text_class = self.classes[self.index]
-        img_tf = ImageDraw.Draw(image) #.convert("RGB") for Caltech
+        img_tf = ImageDraw.Draw(image.convert("RGB")) #.convert("RGB") for Caltech
         
         #Setting possible positions and colours of text and choosing one in random 
         text_locs = [(np.round(i * image.size[0]), np.round(j * image.size[1])) for (i,j) in [(0.25, 0.25), (0.25, 0.6), (0.75, 0.25), (0.6, 0.6)]]
@@ -109,10 +109,10 @@ def validate(model):
                 structured_noise = model(img_corr)      # Structured noise from generator with input as corrupted image
                 adversary = structured_noise + data     # Add original image to structured noise with input as original image
                 adversary = torch.min(torch.max(adversary, data - eps), data + eps)
-                # adversary = torch.clamp(adversary, 0.0, 1.0)
-                # batch_images = make_grid(adversary, nrow=10, normalize=True)
-                # if (batch_idx == 0):
-                #     save_image(batch_images, f"./Adversary_images/{clipname}/{DATASET}/epoch{ep}_eps{str(eps)}.png", normalize=False)
+                ## adversary = torch.clamp(adversary, 0.0, 1.0)
+                batch_images = make_grid(adversary, nrow=10, normalize=True)
+                if (batch_idx == 0):
+                    save_image(batch_images, f"./Adversary_images/{clipname}/{DATASET}/epoch{ep}_eps{str(eps)}.png", normalize=False)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in data_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -158,9 +158,9 @@ def zeroshot(model):
     with tqdm(zeroshot_loader, unit="batch") as tepoch:
         for batch_idx, (data, target) in enumerate(tepoch):
             data, target = data.to(device), target.to(device)
-            # batch_images = make_grid(data, nrow=10, normalize=True)
-            # if (batch_idx == 0):
-            #     save_image(batch_images, f"./original_img/{clipname}/{DATASET}/epoch{ep}.png", normalize=False)
+            batch_images = make_grid(data, nrow=10, normalize=True)
+            if (batch_idx == 0):
+                save_image(batch_images, f"./original_img/{clipname}/{DATASET}/epoch{ep}.png", normalize=False)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in data_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -188,9 +188,9 @@ def zeroshot(model):
 
 if __name__ == '__main__':
     ct = datetime.datetime.now()
-    MODEL_TAG = 'encCLIPfreeze_eps01'
-    DATASET = 'CIFAR10'
-    MIN_CORR = 5
+    MODEL_TAG = 'CLIPenc_all_BS64'
+    DATASET = 'Caltech101'
+    MIN_CORR = None
     COSINE = True
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -199,7 +199,7 @@ if __name__ == '__main__':
     featurizer, preprocess = clip.load(clipname)
     featurizer = featurizer.float().to(device)
     print("Loaded clip model")
-    fontsize = 5
+    fontsize = (5 * round(224/32)) if DATASET == 'Caltech101' else 5
     idx = None # Index of class to be added as text
     eps = 0.1 # Epsilon for projection
     learning_rate = 1e-3
@@ -207,12 +207,13 @@ if __name__ == '__main__':
     model = GeneratorResnet_CLIP()
     model.to(device)
     ## Freeze CLIP encoder
-    for param in model.encoder.parameters():
-        param.requires_grad = False
+    # for param in model.encoder.parameters():
+    #     param.requires_grad = False
+
     criterion = ContrastiveCosine() if COSINE else ContrastiveLoss()
     criterion_noise = ContrastiveLoss_with_noise()
     optimizer = torch.optim.AdamW(list(model.parameters()), lr=learning_rate)
-    batch_size = 12
+    batch_size = 64
     epochs = 20
     noise_only_attract = False # used to control adversary noise only attracted to coruppted text feature
     print("Loaded generator model")
@@ -269,17 +270,17 @@ if __name__ == '__main__':
 
     start = time()
     for ep in range(epochs):
-        # if ep == 0:
-        #     print(f"####### Zero Shot CLIP performance #######")
-        #     top1, top5, predictions = zeroshot(model)
-        #     print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
-        #     # print(f"Predictions: {predictions}")
+        if ep == 0:
+            print(f"####### Zero Shot CLIP performance #######")
+            top1, top5, predictions = zeroshot(model)
+            print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
+            # print(f"Predictions: {predictions}")
 
-        #     with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_{learning_rate}_cosine{COSINE}_{MODEL_TAG}_{ct}.txt', 'a') as f:
-        #         f.write(f"####### Zero Shot CLIP performance #########\n")
-        #         f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
-        #         f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-        #         f.write(100*"-" + "\n")
+            with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_{learning_rate}_cosine{COSINE}_{MODEL_TAG}_{ct}.txt', 'a') as f:
+                f.write(f"####### Zero Shot CLIP performance #########\n")
+                # f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
+                f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+                f.write(100*"-" + "\n")
 
         if ((ep + 1) % 5 == 0 or ep == 0):
             top1, top5,attack_top1,attack_top5, predictions = validate(model)
