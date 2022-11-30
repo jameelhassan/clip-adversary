@@ -33,7 +33,7 @@ class AddText(object):
 
     def __call__(self, sample):
         image = sample
-        self.index = np.random.choice(range(len(data_classes))) if self.random_choice else self.index
+        self.index = np.random.choice(range(MIN_CORR)) if self.random_choice else self.index
         text_class = self.classes[self.index]
         img_tf = ImageDraw.Draw(image.convert("RGB")) #.convert("RGB") for Caltech
         
@@ -110,9 +110,11 @@ def validate(model):
                 adversary = structured_noise + data     # Add original image to structured noise with input as original image
                 adversary = torch.min(torch.max(adversary, data - eps), data + eps)
                 ## adversary = torch.clamp(adversary, 0.0, 1.0)
-                batch_images = make_grid(adversary, nrow=10, normalize=True)
+                # batch_images = make_grid(adversary, nrow=1, normalize=True)
                 if (batch_idx == 0):
-                    save_image(batch_images, f"./Adversary_images/{clipname}/{DATASET}/epoch{ep}_eps{str(eps)}.png", normalize=False)
+                    save_image(data[0], f"./Adversary_images/{clipname}/{DATASET}/orig_{MODEL_TAG}epoch{ep}_eps{str(eps)}.png", normalize=True)
+                    save_image(adversary[0], f"./Adversary_images/{clipname}/{DATASET}/attacks/{MODEL_TAG}epoch{ep}_eps{str(eps)}.png", normalize=True)
+                    save_image((adversary[0] - data[0]), f"./Adversary_images/{clipname}/{DATASET}/attacks/noise_{MODEL_TAG}epoch{ep}_eps{str(eps)}.png", normalize=True)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in data_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -160,7 +162,7 @@ def zeroshot(model):
             data, target = data.to(device), target.to(device)
             batch_images = make_grid(data, nrow=10, normalize=True)
             if (batch_idx == 0):
-                save_image(batch_images, f"./original_img/{clipname}/{DATASET}/epoch{ep}.png", normalize=False)
+                save_image(batch_images, f"./original_img/{clipname}/{DATASET}/{MODEL_TAG}epoch{ep}.png", normalize=False)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in data_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -188,9 +190,8 @@ def zeroshot(model):
 
 if __name__ == '__main__':
     ct = datetime.datetime.now()
-    MODEL_TAG = 'CLIPenc_all_BS64'
+    MODEL_TAG = 'TEST'
     DATASET = 'Caltech101'
-    MIN_CORR = None
     COSINE = True
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -199,7 +200,7 @@ if __name__ == '__main__':
     featurizer, preprocess = clip.load(clipname)
     featurizer = featurizer.float().to(device)
     print("Loaded clip model")
-    fontsize = (5 * round(224/32)) if DATASET == 'Caltech101' else 5
+    fontsize = (5 * round(224/32)) if (DATASET == 'Caltech101') else 5
     idx = None # Index of class to be added as text
     eps = 0.1 # Epsilon for projection
     learning_rate = 1e-3
@@ -213,8 +214,8 @@ if __name__ == '__main__':
     criterion = ContrastiveCosine() if COSINE else ContrastiveLoss()
     criterion_noise = ContrastiveLoss_with_noise()
     optimizer = torch.optim.AdamW(list(model.parameters()), lr=learning_rate)
-    batch_size = 64
-    epochs = 20
+    batch_size = 32
+    epochs = 35
     noise_only_attract = False # used to control adversary noise only attracted to coruppted text feature
     print("Loaded generator model")
 
@@ -248,18 +249,20 @@ if __name__ == '__main__':
 
     elif DATASET == 'Caltech101':
         zeroshot_caltech_set = torchvision.datasets.ImageFolder(root='./data/caltech-101/101_ObjectCategories', transform=preprocess)
-        zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_caltech_set, batch_size=batch_size, shuffle=False, num_workers=2)
         data_classes = zeroshot_caltech_set.classes
         print(data_classes)
+        zeroshot_caltech_set = torch.utils.data.random_split(zeroshot_caltech_set, lengths=[round(0.8*len(zeroshot_caltech_set)), round(0.2*len(zeroshot_caltech_set))], generator=torch.Generator().manual_seed(701))[1]
+        zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_caltech_set, batch_size=batch_size, shuffle=False, num_workers=2)
         preprocess_corrupt = transforms.Compose([AddText(data_classes, fontsize=fontsize, index=idx), preprocess])
 
         caltech_dataset = MyCaltech101(root='./data/caltech-101/101_ObjectCategories', transform_corr=preprocess_corrupt, transform=preprocess)
-        caltech_train, caltech_test = torch.utils.data.random_split(caltech_dataset, lengths=[round(0.8*len(caltech_dataset)), round(0.2*len(caltech_dataset))])
+        caltech_train, caltech_test = torch.utils.data.random_split(caltech_dataset, lengths=[round(0.8*len(caltech_dataset)), round(0.2*len(caltech_dataset))], generator=torch.Generator().manual_seed(701))
         
         train_loader = torch.utils.data.DataLoader(caltech_train, batch_size=batch_size, shuffle=True, num_workers=2)
         test_loader = torch.utils.data.DataLoader(caltech_test, batch_size=batch_size, shuffle=False, num_workers=2)
         
 
+    MIN_CORR = 15 #len(data_classes) 
     clipname = clipname.replace('/', '-')
     if not os.path.exists(f"./Adversary_images/{clipname}/{DATASET}"):
         os.makedirs(f"./Adversary_images/{clipname}/{DATASET}")
@@ -270,20 +273,20 @@ if __name__ == '__main__':
 
     start = time()
     for ep in range(epochs):
-        if ep == 0:
-            print(f"####### Zero Shot CLIP performance #######")
-            top1, top5, predictions = zeroshot(model)
-            print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
-            # print(f"Predictions: {predictions}")
+        # if ep == 0:
+        #     print(f"####### Zero Shot CLIP performance #######")
+        #     top1, top5, predictions = zeroshot(model)
+        #     print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}")
+        #     # print(f"Predictions: {predictions}")
 
-            with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_{learning_rate}_cosine{COSINE}_{MODEL_TAG}_{ct}.txt', 'a') as f:
-                f.write(f"####### Zero Shot CLIP performance #########\n")
-                # f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
-                f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
-                f.write(100*"-" + "\n")
+        #     with open(f'checkpoints/{clipname}/{DATASET}/min_corr{MIN_CORR}_{learning_rate}_cosine{COSINE}_{MODEL_TAG}_{ct}.txt', 'a') as f:
+        #         f.write(f"####### Zero Shot CLIP performance #########\n")
+        #         # f.write(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
+        #         f.write(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
+        #         f.write(100*"-" + "\n")
 
         if ((ep + 1) % 5 == 0 or ep == 0):
-            top1, top5,attack_top1,attack_top5, predictions = validate(model)
+            top1, top5, attack_top1, attack_top5, predictions = validate(model)
             print(f"Class label {idx}: {data_classes[idx]} corruption predictions - {predictions}\n") if idx is not None else print(f"Corruption predictions - {predictions}\n")
             print(f"Epoch {ep} - Top1: {top1:.2f} Top5: {top5:.2f}\n")
             print(f"Epoch {ep} - Attack_Top1: {attack_top1:.2f} Attack_Top5: {attack_top5:.2f}\n")

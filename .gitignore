@@ -3,3 +3,5 @@ cluster_out/*
 checkpoints/*
 cluster_out/*
 results/*
+Adversary_images/*
+original_img/*
