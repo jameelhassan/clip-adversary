@@ -34,12 +34,14 @@ class AddText(object):
 
     def __call__(self, sample):
         image = sample
-        self.index = np.random.choice(range(10)) if self.random_choice else self.index
+        if image.mode != 'RGB': # conver to RGB for Caltech
+            image = image.convert('RGB')
+        self.index = np.random.choice(range(len(data_classes))) if self.random_choice else self.index
         text_class = self.classes[self.index]
-        img_tf = ImageDraw.Draw(image.convert("RGB")) #.convert("RGB") for Caltech
+        img_tf = ImageDraw.Draw(image) 
         
         #Setting possible positions and colours of text and choosing one in random 
-        text_locs = [(np.round(i * image.size[0]), np.round(j * image.size[1])) for (i,j) in [(0.25, 0.25), (0.25, 0.6), (0.75, 0.25), (0.6, 0.6)]]
+        text_locs = [(np.round(i * image.size[0]), np.round(j * image.size[1])) for (i,j) in [(0.25, 0.25), (0.25, 0.45), (0.75, 0.25), (0.6, 0.45)]]
         text_pos = random.choice(text_locs)
         text_cols = [(255,0,0), (0,255,0), (0,0,255), (0,0,0), (255,255,255)]
         text_col = random.choice(text_cols) #(0,0,0) for Black
@@ -66,9 +68,10 @@ def validate(model):
                 adversary = structured_noise + data     # Add original image to structured noise with input as original image
                 adversary = torch.min(torch.max(adversary, data - eps), data + eps)
                 # adversary = torch.clamp(adversary, 0.0, 1.0)
-                batch_images = make_grid(adversary, nrow=10, normalize=True)
-                if (batch_idx == 0):
-                    save_image(batch_images, f"./Adversary_images/{clipname}/{DATASET}/attacks/eps{str(eps)}.png", normalize=False)
+                # batch_images = make_grid(adversary, nrow=10, normalize=True)
+                # if (batch_idx == 0):
+                # save_image(adversary[0], f"./Adversary_images/{clipname}/{DATASET}/attacksAtt/im{n}.png", normalize=True)
+                # save_image(data[0], f"./Adversary_images/{clipname}/{DATASET}/attacksText/im{n}.png", normalize=True)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in data_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -83,6 +86,9 @@ def validate(model):
             for p in preds.cpu():
                 predictions[p] += 1
 
+            with open(f"./Adversary_images/{clipname}/{DATASET}/attacksAtt/eval.txt", "a") as f:
+                f.write(f"tag{n} --> Target: {data_classes[target[0]]}, Corrupted text: {data_classes[text_corr_idx[0]]}, Prediction: {data_classes[preds[0]]}\n")
+                
             #Calculate accuracy
             acc1, acc5 = accuracy(logits, target, topk=(1, 5)) # should decrease 
 
@@ -116,7 +122,7 @@ def zeroshot(model):
             data, target = data.to(device), target.to(device)
             # batch_images = make_grid(data, nrow=10, normalize=True)
             # if (batch_idx == 0):
-            #     save_image(batch_images, f"./original_img/{clipname}/{DATASET}/epoch{ep}.png", normalize=False)
+            #     save_image(data[0], f"./Adversary_images/{clipname}/{DATASET}/origAtt/epoch{n}.png", normalize=True)
 
             text_descriptions = [f"This is a photo of a {cl}" for cl in data_classes]
             text_tokens = clip.tokenize(text_descriptions).cuda()
@@ -144,9 +150,10 @@ def zeroshot(model):
 
 
 if __name__ == "__main__":
-    MODEL_TAG = 'CLIP_CIFAR10-corr7'
+    print("Running Inference Script")
+    MODEL_TAG = 'CLIP_Caltech_CorrAll'
     DATASET = 'Caltech101'
-    checkpoint = "./checkpoints/ViT-B-16/CIFAR10/min_corr7_0.001_cosineTrue_encCLIP_eps01_2022-11-25 16:42:22.356050_chk_ep19.pth"
+    checkpoint = "./checkpoints/ViT-B-16/Caltech101/min_corr102_0.001_cosineTrue_CLIPenc_all_BS32_2022-11-28 22:42:44.443948_chk_ep29.pth"
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     # clip_models = clip.available_models()[0:1] + clip.available_models()[6:7]
@@ -154,12 +161,12 @@ if __name__ == "__main__":
     featurizer, preprocess = clip.load(clipname)
     featurizer = featurizer.float().to(device)
     print("Loaded clip model")
-    fontsize = 5 * round(224/32)
+    fontsize = 4 * round(224/32)
     idx = None # Index of class to be added as text
     eps = 0.1 # Epsilon for projection
 
     generator = GeneratorResnet_CLIP().to(device)
-    generator.load_state_dict(torch.load(f"{checkpoint}"))
+    generator.load_state_dict(torch.load(checkpoint))
     generator.eval()
     
     batch_size = 12
@@ -169,11 +176,12 @@ if __name__ == "__main__":
         data_classes = get_cifar10_classes('./data/cifar10/batches.meta')
         print(data_classes)
         preprocess_corrupt = transforms.Compose([AddText(data_classes, fontsize=fontsize, index=idx), preprocess])
+        addTextPreProcess = transforms.Compose([AddText(data_classes, fontsize=fontsize, index=idx), transforms.ToTensor()])
 
         trainset = Cifar10_preprocess2(root='./data/cifar10', train=True, download=False, transform_corr=preprocess_corrupt, transform=preprocess)
         train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
 
-        testset = Cifar10_preprocess2(root='./data/cifar10', train=False, download=False, transform_corr=preprocess_corrupt, transform=preprocess)
+        testset = Cifar10_preprocess2(root='./data/cifar10', train=False, download=False, transform_corr=preprocess_corrupt, transform=addTextPreProcess)
         test_loader = torch.utils.data.DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
         zeroshot_set = torchvision.datasets.CIFAR10(root='./data/cifar10', train=False, download=False, transform=preprocess)
@@ -194,20 +202,27 @@ if __name__ == "__main__":
         zeroshot_caltech_set = torchvision.datasets.ImageFolder(root='./data/caltech-101/101_ObjectCategories', transform=preprocess)
         data_classes = zeroshot_caltech_set.classes
         print(data_classes)
-        _, zeroshot_caltech_set = torch.utils.data.random_split(zeroshot_caltech_set, lengths=[round(0.8*len(zeroshot_caltech_set)), round(0.2*len(zeroshot_caltech_set))])
+        addTextPreProcess = transforms.Compose([AddText(data_classes, fontsize=fontsize, index=idx), transforms.Compose(preprocess.transforms[0:-1])])
+        
+        zeroshot_caltech_set = torch.utils.data.random_split(zeroshot_caltech_set, lengths=[round(0.8*len(zeroshot_caltech_set)), round(0.2*len(zeroshot_caltech_set))], generator=torch.Generator().manual_seed(701))[1]
         zeroshot_loader = torch.utils.data.DataLoader(dataset=zeroshot_caltech_set, batch_size=batch_size, shuffle=False, num_workers=2)
-
         preprocess_corrupt = transforms.Compose([AddText(data_classes, fontsize=fontsize, index=idx), preprocess])
 
-        caltech_dataset = MyCaltech101(root='./data/caltech-101/101_ObjectCategories', transform_corr=preprocess_corrupt, transform=preprocess)
-        caltech_train, caltech_test = torch.utils.data.random_split(caltech_dataset, lengths=[round(0.8*len(caltech_dataset)), round(0.2*len(caltech_dataset))])
+        caltech_dataset = MyCaltech101(root='./data/caltech-101/101_ObjectCategories', transform_corr=preprocess_corrupt, transform=addTextPreProcess)
+        caltech_train, caltech_test = torch.utils.data.random_split(caltech_dataset, lengths=[round(0.8*len(caltech_dataset)), round(0.2*len(caltech_dataset))], generator=torch.Generator().manual_seed(701))
         
         test_loader = torch.utils.data.DataLoader(caltech_test, batch_size=batch_size, shuffle=False, num_workers=2)
         
 
     clipname = clipname.replace('/', '-')
-    if not os.path.exists(f"./Adversary_images/{clipname}/{DATASET}/attacks/"):
-        os.makedirs(f"./Adversary_images/{clipname}/{DATASET}/attacks/")
+    # if not os.path.exists(f"./Adversary_images/{clipname}/{DATASET}/attacksAtt/"):
+    #     os.makedirs(f"./Adversary_images/{clipname}/{DATASET}/attacksAtt/")
+    #     os.makedirs(f"./Adversary_images/{clipname}/{DATASET}/origAtt/")
+    #     os.makedirs(f"./Adversary_images/{clipname}/{DATASET}/attacksNoise/")
+
+    if not os.path.exists(f"./Adversary_images/{clipname}/{DATASET}/attacksText/"):
+        os.makedirs(f"./Adversary_images/{clipname}/{DATASET}/attacksText/")
+        
 
     if not os.path.exists(f"./results/attacks/{clipname}/{DATASET}/"):
         os.makedirs(f"./results/attacks/{clipname}/{DATASET}/")
