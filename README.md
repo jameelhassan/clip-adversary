@@ -11,3 +11,5 @@ Set the data in the directory and set it accordingly when using the code here. Y
 
 To get CLIP evaluation on CIFAR10 and CIFAR100 run ```eval.py``` \
 To get evaluation with text corruption set ```TEXT_CORRUPT=True``` in file. For Zero shot set it to **False**. 
+
+![Poster](<https://github.com/jameelhassan/clip-adversary/blob/main/poster.png?raw=true>)
